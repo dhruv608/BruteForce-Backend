@@ -23,9 +23,13 @@ Table students {
   name varchar(100) [not null]
   email varchar(150) [not null, unique]
   username varchar(100) [not null, unique]
-  password_hash text
 
+  password_hash text
   google_id varchar(100) [unique]
+
+  provider varchar(20) [default: "google"]  // google, local
+  refresh_token text
+
   enrollment_id varchar(100) [unique]
 
   city_id int
@@ -49,6 +53,8 @@ Table admins {
   password_hash text [not null]
 
   role varchar(30) [not null]  // SUPERADMIN, TEACHER, INTERN
+
+  refresh_token text
 
   created_at timestamp [default: `now()`]
   updated_at timestamp [default: `now()`]

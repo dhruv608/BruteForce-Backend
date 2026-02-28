@@ -35,29 +35,26 @@ model Batch {
 }
 
 model Student {
-  id            Int     @id @default(autoincrement())
-  name          String  @db.VarChar(100)
-  email         String  @unique @db.VarChar(150)
-  username      String  @unique @db.VarChar(100)
-  password_hash String? @db.Text
-  google_id     String? @unique @db.VarChar(100)
-  enrollment_id String? @unique @db.VarChar(100)
-
-  city_id  Int?
-  batch_id Int?
-
-  leetcode_id String? @db.VarChar(100)
-  gfg_id      String? @db.VarChar(100)
-
-  is_profile_complete Boolean @default(false)
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  city      City?             @relation(fields: [city_id], references: [id])
-  batch     Batch?            @relation(fields: [batch_id], references: [id])
-  progress  StudentProgress[]
-  bookmarks Bookmark[]
+  id                  Int               @id @default(autoincrement())
+  name                String            @db.VarChar(100)
+  email               String            @unique @db.VarChar(150)
+  username            String            @unique @db.VarChar(100)
+  password_hash       String?
+  google_id           String?           @unique @db.VarChar(100)
+  enrollment_id       String?           @unique @db.VarChar(100)
+  city_id             Int?
+  batch_id            Int?
+  leetcode_id         String?           @db.VarChar(100)
+  gfg_id              String?           @db.VarChar(100)
+  is_profile_complete Boolean           @default(false)
+  created_at          DateTime          @default(now())
+  updated_at          DateTime          @updatedAt
+  provider            String            @default("google")
+  refresh_token       String?
+  bookmarks           Bookmark[]
+  batch               Batch?            @relation(fields: [batch_id], references: [id])
+  city                City?             @relation(fields: [city_id], references: [id])
+  progress            StudentProgress[]
 
   @@index([city_id])
   @@index([batch_id])
@@ -68,65 +65,38 @@ model Admin {
   name          String    @db.VarChar(100)
   email         String    @unique @db.VarChar(150)
   username      String    @unique @db.VarChar(100)
-  password_hash String    @db.Text
+  password_hash String
   role          AdminRole @default(INTERN)
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-}
-
-enum AdminRole {
-  SUPERADMIN
-  TEACHER
-  INTERN
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  refresh_token String?
 }
 
 model Topic {
-  id         Int      @id @default(autoincrement())
-  topic_name String   @unique @db.VarChar(150)
-  slug       String   @unique @db.VarChar(170)
-  created_at DateTime @default(now())
-
-  questions Question[]
-  classes   Class[]
+  id         Int        @id @default(autoincrement())
+  topic_name String     @unique @db.VarChar(150)
+  created_at DateTime   @default(now())
+  classes    Class[]
+  questions  Question[]
 }
 
 model Question {
-  id            Int          @id @default(autoincrement())
-  question_name String       @db.VarChar(255)
-  question_link String       @db.Text
-  platform      Platform     @default(LEETCODE)
-  level         Level        @default(MEDIUM)
-  type          QuestionType @default(HOMEWORK)
+  id            Int                  @id @default(autoincrement())
+  question_name String               @db.VarChar(255)
+  question_link String
+  platform      Platform             @default(LEETCODE)
+  level         Level                @default(MEDIUM)
+  type          QuestionType         @default(HOMEWORK)
   topic_id      Int
-  created_at    DateTime     @default(now())
+  created_at    DateTime             @default(now())
+  bookmarks     Bookmark[]
+  topic         Topic                @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  visibility    QuestionVisibility[]
+  progress      StudentProgress[]
 
-  topic      Topic                @relation(fields: [topic_id], references: [id], onDelete: Cascade)
-  visibility QuestionVisibility[]
-  progress   StudentProgress[]
-  bookmarks  Bookmark[]
-
-  @@unique([question_link])
   @@index([topic_id])
   @@index([platform])
   @@index([level])
-}
-
-enum Platform {
-  LEETCODE
-  GFG
-  OTHER
-}
-
-enum Level {
-  EASY
-  MEDIUM
-  HARD
-}
-
-enum QuestionType {
-  HOMEWORK
-  CLASSWORK
 }
 
 model Class {

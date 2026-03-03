@@ -61,6 +61,27 @@ router.post(  "/topics/bulk",  isTeacherOrAbove,  createTopicsBulk);
 /* ==========================================
    WORKSPACE ROUTES (BATCH CONTEXT)
 ========================================= */
+// questions gloabal 
+router.post("/questions", isTeacherOrAbove, createQuestion);
+
+router.get("/questions", getAllQuestions);
+router.patch(
+  "/questions/:id",
+  isTeacherOrAbove,
+  updateQuestion
+);
+router.delete(
+  "/questions/:id",
+  isTeacherOrAbove,
+  deleteQuestion
+);
+router.post(
+  "/questions/bulk-upload",
+  isTeacherOrAbove,
+  upload.single("file"),
+  bulkUploadQuestions
+);
+
 
 // Everything below requires valid batchSlug
 router.use("/:batchSlug", resolveBatch);
@@ -107,25 +128,7 @@ router.delete(
 /* ---------- Assign Questions ---------- */
 
 
-// questions gloabal 
-router.post("/questions", isTeacherOrAbove, createQuestion);
-router.get("/questions", getAllQuestions);
-router.patch(
-  "/questions/:id",
-  isTeacherOrAbove,
-  updateQuestion
-);
-router.delete(
-  "/questions/:id",
-  isTeacherOrAbove,
-  deleteQuestion
-);
-router.post(
-  "/questions/bulk-upload",
-  isTeacherOrAbove,
-  upload.single("file"),
-  bulkUploadQuestions
-);
+
 
 // batch wise class wise question assign
 

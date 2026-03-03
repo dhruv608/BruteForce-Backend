@@ -7,7 +7,7 @@ import { resolveBatch } from "../middlewares/batch.middleware";
 import { getAllCities } from "../controllers/admin/city.controller";
 import { getAllTopics, createTopic, updateTopic, deleteTopic } from "../controllers/admin/topic.controller";
 import { createBatch, getAllBatches } from "../controllers/admin/batch.controller";
-
+import { createTopicsBulk }  from "../controllers/admin/topic.controller"
 // Workspace Controllers (inside same files)
 // import { getWorkspaceOverview, getBatchAnalytics, getLeaderboard } from "../controllers/admin/analytics.controller";
 
@@ -53,6 +53,7 @@ router.get("/topics", getAllTopics);
 router.post("/topics", isTeacherOrAbove, createTopic);
 router.patch("/topics/:id", isTeacherOrAbove, updateTopic);
 router.delete("/topics/:id", isTeacherOrAbove, deleteTopic);
+router.post(  "/topics/bulk",  isTeacherOrAbove,  createTopicsBulk);
 /* ==========================================
    WORKSPACE ROUTES (BATCH CONTEXT)
 ========================================= */

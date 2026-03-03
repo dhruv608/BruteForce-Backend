@@ -505,7 +505,41 @@ POST /api/admin/topics
   }
 }
 ```
+# 📚 Bulk Upload Topics API
 
+## 🔹 Endpoint
+
+POST `/api/admin/topics/bulk`
+
+---
+
+## 🔐 Authorization
+
+This route is protected.
+
+Required Header:
+
+Authorization: Bearer <JWT_TOKEN>
+
+Only **Admin / Teacher or Above** roles are allowed.
+
+---
+
+## 📥 Request Body
+
+Content-Type: `application/json`
+
+```json
+{
+  "topics": [
+    "Arrays",
+    "Strings",
+    "Linked List",
+    "Stack",
+    "Queue",
+    "Trees"
+  ]
+}
 ---
 
 ### Questions Management
@@ -621,7 +655,7 @@ POST /api/admin/:batchSlug/topics/:topicSlug/classes
 **Request Body:**
 ```json
 {
-  "class_number": "Class 3",
+  "class_name": "Class 3",
   "class_date": "2025-02-15T10:00:00.000Z",
   "pdf_url": "https://example.com/class3.pdf",
   "description": "Arrays Problem Solving",

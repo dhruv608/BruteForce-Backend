@@ -80,8 +80,7 @@ export const getTopicsForBatchService = async ({
       questions: {
         select: { id: true },
       },
-    },
-    orderBy: { topic_name: "asc" },
+    }
   });
 
   const formatted = topics.map((topic) => ({

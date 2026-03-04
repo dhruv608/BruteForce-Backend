@@ -27,8 +27,6 @@ import { upload } from "../middlewares/upload.middleware";
 import { bulkUploadQuestions } from "../controllers/admin/questionBulk.controller";
 import { updateStudentDetails, deleteStudentDetails }  from "../controllers/admin/student.controller"
 import { getAllStudentsController, getStudentReportController, addStudentProgressController, createStudentController }  from "../controllers/admin/student.controller"
-import { getAllStudentsController, getStudentReportController }  from "../controllers/admin/student.controller"
-import { createStudentController }  from "../controllers/admin/student.controller"
 import { testLeetcode, testGfg } from "../controllers/test.controller";
 import { manualSync } from "../controllers/admin/progress.controller";
 // import {

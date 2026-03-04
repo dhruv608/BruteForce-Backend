@@ -98,7 +98,7 @@ export const createClassInTopicService = async ({
     throw new Error("Topic not found");
   }
 
-  // 2️⃣ Check duplicate inside same topic + batch
+  // 2️⃣ Check duplicate inside same topic + batch (unique across both)
   const duplicateName = await prisma.class.findFirst({
     where: {
       topic_id: topic.id,
@@ -113,7 +113,7 @@ export const createClassInTopicService = async ({
     );
   }
 
-  // 3️⃣ Generate slug unique inside batch
+  // 3️⃣ Generate slug unique across topic + batch
   const baseSlug = slugify(class_name, {
     lower: true,
     strict: true,
@@ -125,8 +125,9 @@ export const createClassInTopicService = async ({
   while (
     await prisma.class.findFirst({
       where: {
-        batch_id: batchId,
-        slug: finalSlug,
+        topic_id: topic.id,    // ✅ Same topic
+        batch_id: batchId,     // ✅ Same batch  
+        slug: finalSlug,        // ✅ Same slug
       },
     })
   ) {

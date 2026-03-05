@@ -64,6 +64,14 @@ export async function syncOneStudent(studentId: number) {
 
     const lcData = await fetchLeetcodeData(student.leetcode_id);
 
+    console.log("🔍 DEBUG: LeetCode Data:", {
+      username: student.leetcode_id,
+      totalSolved: lcData.totalSolved,
+      studentTotalSolved: student.lc_total_solved,
+      submissions: lcData.submissions.length,
+      shouldSync: lcData.totalSolved > student.lc_total_solved
+    });
+
     if (lcData.totalSolved > student.lc_total_solved) {
 
       lcData.submissions
@@ -73,6 +81,10 @@ export async function syncOneStudent(studentId: number) {
           const questionId = questionMap.get(sub.titleSlug);
 
           if (questionId && !solvedSet.has(questionId)) {
+            console.log("🔍 DEBUG: New LeetCode solution:", {
+              titleSlug: sub.titleSlug,
+              questionId: questionId
+            });
             newProgressEntries.push({
               student_id: student.id,
               question_id: questionId
@@ -88,6 +100,8 @@ export async function syncOneStudent(studentId: number) {
           last_synced_at: new Date()
         }
       });
+    } else {
+      console.log("🔍 DEBUG: LeetCode sync skipped - no new solved questions");
     }
   }
 
@@ -98,6 +112,14 @@ export async function syncOneStudent(studentId: number) {
 
     const gfgData = await fetchGfgData(student.gfg_id);
 
+    console.log("🔍 DEBUG: GFG Data:", {
+      handle: student.gfg_id,
+      totalSolved: gfgData.totalSolved,
+      studentTotalSolved: student.gfg_total_solved,
+      solvedSlugs: gfgData.solvedSlugs.length,
+      shouldSync: gfgData.totalSolved > student.gfg_total_solved
+    });
+
     if (gfgData.totalSolved > student.gfg_total_solved) {
 
       gfgData.solvedSlugs.forEach(slug => {
@@ -105,6 +127,10 @@ export async function syncOneStudent(studentId: number) {
         const questionId = questionMap.get(slug);
 
         if (questionId && !solvedSet.has(questionId)) {
+          console.log("🔍 DEBUG: New GFG solution:", {
+            slug: slug,
+            questionId: questionId
+          });
           newProgressEntries.push({
             student_id: student.id,
             question_id: questionId
@@ -120,6 +146,8 @@ export async function syncOneStudent(studentId: number) {
           last_synced_at: new Date()
         }
       });
+    } else {
+      console.log("🔍 DEBUG: GFG sync skipped - no new solved questions");
     }
   }
 

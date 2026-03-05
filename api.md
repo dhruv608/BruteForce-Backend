@@ -759,6 +759,8 @@ Two Sum,https://leetcode.com/problems/two-sum/,LEETCODE,EASY,HOMEWORK,Arrays
 ### Workspace Routes (Batch Context)
 **All routes below require**: `batchSlug` parameter
 
+**Important Note**: Class slugs are now **topic-specific**. The same class slug (e.g., "class-1") can exist in different topics within the same batch. All class management and question assignment routes now require `topicSlug` parameter.
+
 #### Get Topics for Batch
 ```http
 GET /api/admin/:batchSlug/topics
@@ -862,11 +864,12 @@ POST /api/admin/:batchSlug/topics/:topicSlug/classes
 
 #### Get Class Details
 ```http
-GET /api/admin/:batchSlug/classes/:classSlug
+GET /api/admin/:batchSlug/topics/:topicSlug/classes/:classSlug
 ```
 
 **URL Parameters:**
 - `batchSlug` (string) - Batch slug
+- `topicSlug` (string) - Topic slug  
 - `classSlug` (string) - Class slug
 
 **Success Response (200):**
@@ -904,12 +907,13 @@ GET /api/admin/:batchSlug/classes/:classSlug
 
 #### Update Class
 ```http
-PATCH /api/admin/:batchSlug/classes/:classSlug
+PATCH /api/admin/:batchSlug/topics/:topicSlug/classes/:classSlug
 ```
 **Access**: Teacher or SuperAdmin only
 
 **URL Parameters:**
 - `batchSlug` (string) - Batch slug
+- `topicSlug` (string) - Topic slug
 - `classSlug` (string) - Class slug
 
 **Request Body:**
@@ -944,12 +948,13 @@ PATCH /api/admin/:batchSlug/classes/:classSlug
 
 #### Delete Class
 ```http
-DELETE /api/admin/:batchSlug/classes/:classSlug
+DELETE /api/admin/:batchSlug/topics/:topicSlug/classes/:classSlug
 ```
 **Access**: Teacher or SuperAdmin only
 
 **URL Parameters:**
 - `batchSlug` (string) - Batch slug
+- `topicSlug` (string) - Topic slug
 - `classSlug` (string) - Class slug
 
 **Success Response (200):**
@@ -965,12 +970,13 @@ DELETE /api/admin/:batchSlug/classes/:classSlug
 
 #### Assign Questions to Class
 ```http
-POST /api/admin/:batchSlug/classes/:classSlug/questions
+POST /api/admin/:batchSlug/topics/:topicSlug/classes/:classSlug/questions
 ```
 **Access**: Teacher or SuperAdmin only
 
 **URL Parameters:**
 - `batchSlug` (string) - Batch slug
+- `topicSlug` (string) - Topic slug
 - `classSlug` (string) - Class slug
 
 **Request Body:**
@@ -993,11 +999,12 @@ POST /api/admin/:batchSlug/classes/:classSlug/questions
 
 #### Get Assigned Questions of Class
 ```http
-GET /api/admin/:batchSlug/classes/:classSlug/questions
+GET /api/admin/:batchSlug/topics/:topicSlug/classes/:classSlug/questions
 ```
 
 **URL Parameters:**
 - `batchSlug` (string) - Batch slug
+- `topicSlug` (string) - Topic slug
 - `classSlug` (string) - Class slug
 
 **Success Response (200):**
@@ -1027,12 +1034,13 @@ GET /api/admin/:batchSlug/classes/:classSlug/questions
 
 #### Remove Question from Class
 ```http
-DELETE /api/admin/:batchSlug/classes/:classSlug/questions/:questionId
+DELETE /api/admin/:batchSlug/topics/:topicSlug/classes/:classSlug/questions/:questionId
 ```
 **Access**: Teacher or SuperAdmin only
 
 **URL Parameters:**
 - `batchSlug` (string) - Batch slug
+- `topicSlug` (string) - Topic slug
 - `classSlug` (string) - Class slug
 - `questionId` (number) - Question ID
 

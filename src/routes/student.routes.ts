@@ -25,7 +25,7 @@ router.get("/addedQuestions", getAllQuestionsWithFilters); // All questions with
 
 
 // ===== LEADERBOARD ROUTES =====
-router.get("/leaderboard", /* getLeaderboardByType */); // All leaderboard types with filters (type=global|city|batch|batch-city)
+// router.get("/leaderboard", getLeaderboardByType); // All leaderboard types with filters (type=global|city|batch|batch-city)
 
 
 

@@ -194,9 +194,11 @@ export const deleteClass = async (
 export const getClassDetailsWithFullQuestions = async (req: Request, res: Response) => {
   try {
     // Get student info from middleware (extractStudentInfo)
-    const studentId = (req as any).studentId;
+    const student = (req as any).student;
     const batchId = (req as any).batchId;
     const { topicSlug, classSlug } = req.params;
+    
+    const studentId = student?.id;
     
     // Ensure slugs are strings (not string arrays)
     const topic = Array.isArray(topicSlug) ? topicSlug[0] : topicSlug;

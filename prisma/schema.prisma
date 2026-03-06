@@ -46,7 +46,6 @@ model Student {
   batch_id            Int?
   leetcode_id         String?           @db.VarChar(100)
   gfg_id              String?           @db.VarChar(100)
-  is_profile_complete Boolean           @default(false)
   created_at          DateTime          @default(now())
   updated_at          DateTime          @updatedAt
   provider            String            @default("google")

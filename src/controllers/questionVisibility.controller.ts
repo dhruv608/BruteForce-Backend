@@ -178,8 +178,10 @@ export const removeQuestionFromClass = async (
 export const getAllQuestionsWithFilters = async (req: Request, res: Response) => {
   try {
     // Get student info from middleware (extractStudentInfo)
-    const studentId = (req as any).studentId;
+    const student = (req as any).student;
     const batchId = (req as any).batchId;
+    
+    const studentId = student?.id;
 
     if (!studentId || !batchId) {
       return res.status(400).json({

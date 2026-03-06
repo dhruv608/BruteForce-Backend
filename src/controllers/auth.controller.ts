@@ -11,22 +11,45 @@ const googleClient = new OAuth2Client(
 // Student Registration
 export const registerStudent = async (req: Request, res: Response) => {
   try {
-    const { name, email, username, password } = req.body;
+    const { 
+      name, 
+      email, 
+      username, 
+      password, 
+      enrollment_id, 
+      batch_id, 
+      leetcode_id, 
+      gfg_id 
+    } = req.body;
 
     // Validation
-    if (!name || !email || !username || !password) {
-      return res.status(400).json({ error: 'All fields are required' });
+    if (!name || !email || !username || !password || !batch_id) {
+      return res.status(400).json({ 
+        error: 'Name, email, username, password, and batch_id are required' 
+      });
     }
 
     // Check existing user
     const existingStudent = await prisma.student.findFirst({
       where: {
-        OR: [{ email }, { username }],
+        OR: [{ email }, { username }, { enrollment_id }],
       },
     });
 
     if (existingStudent) {
-      return res.status(400).json({ error: 'Email or username already exists' });
+      return res.status(400).json({ 
+        error: 'Email, username, or enrollment_id already exists' 
+      });
+    }
+
+    // Get batch information to fetch city_id
+    const batch = await prisma.batch.findUnique({
+      where: { id: batch_id },
+      include: { city: true }
+    });
+
+    if (!batch) {
+      return res.status(400).json({ error: 'Invalid batch_id' });
     }
 
     // Hash password
@@ -39,43 +62,44 @@ export const registerStudent = async (req: Request, res: Response) => {
         email,
         username,
         password_hash,
+        enrollment_id,
+        batch_id,
+        city_id: batch.city.id,  // Fetch city_id from batch
+        leetcode_id,
+        gfg_id,
       },
       select: {
         id: true,
         name: true,
         email: true,
         username: true,
-        is_profile_complete: true,
+        enrollment_id: true,
+        batch_id: true,
+        city_id: true,
+        leetcode_id: true,
+        gfg_id: true,
         created_at: true,
+        batch: {
+          select: {
+            id: true,
+            batch_name: true,
+            slug: true,
+            year: true
+          }
+        },
+        city: {
+          select: {
+            id: true,
+            city_name: true
+          }
+        }
       },
     });
 
-    const accessToken = generateAccessToken({
-      id: student.id,
-      email: student.email,
-      role: 'STUDENT',
-      userType: 'student',
-    });
-
-    const refreshToken = generateRefreshToken({
-      id: student.id,
-      userType: 'student',
-    });
-
-    // Save refresh token
-    await prisma.student.update({
-      where: { id: student.id },
-      data: { refresh_token: refreshToken },
-    });
-
-
     res.status(201).json({
       message: 'Student registered successfully',
-      accessToken,
-      refreshToken,
       user: student,
     });
-
 
   } catch (error) {
     console.error('Register error:', error);
@@ -86,15 +110,22 @@ export const registerStudent = async (req: Request, res: Response) => {
 // Student Login
 export const loginStudent = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, username } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if ((!email && !username) || !password) {
+      return res.status(400).json({ 
+        error: 'Either email or username with password are required' 
+      });
     }
 
-    // Find student
-    const student = await prisma.student.findUnique({
-      where: { email },
+    // Find student by email or username
+    const student = await prisma.student.findFirst({
+      where: {
+        OR: [
+          email ? { email } : {},
+          username ? { username } : {}
+        ]
+      },
       include: {
         city: true,
         batch: true,
@@ -117,6 +148,13 @@ export const loginStudent = async (req: Request, res: Response) => {
       email: student.email,
       role: 'STUDENT',
       userType: 'student',
+      ...(student.batch && student.city && {
+        batchId: student.batch.id,
+        batchName: student.batch.batch_name,
+        batchSlug: student.batch.slug,
+        cityId: student.city.id,
+        cityName: student.city.city_name,
+      }),
     });
 
     const refreshToken = generateRefreshToken({
@@ -140,14 +178,13 @@ export const loginStudent = async (req: Request, res: Response) => {
         username: student.username,
         city: student.city,
         batch: student.batch,
-        is_profile_complete: student.is_profile_complete,
         leetcode_id: student.leetcode_id,
         gfg_id: student.gfg_id,
-        defaultCityId: student.city_id,
-        defaultCityName: student.city?.city_name || null,
-        defaultBatchId: student.batch_id,
-        defaultBatchName: student.batch?.batch_name || null,
-        defaultBatchSlug: student.batch?.slug || null,
+        cityId: student.city_id,
+        cityName: student.city?.city_name || null,
+        batchId: student.batch_id,
+        batchName: student.batch?.batch_name || null,
+        batchSlug: student.batch?.slug || null
       },
     });
   } catch (error) {
@@ -386,6 +423,14 @@ export const googleLogin = async (req: Request, res: Response) => {
       email: student.email,
       role: "STUDENT",
       userType: "student",
+      // Include batch and city info if available
+      ...(student.batch && student.city && {
+        batchId: student.batch.id,
+        batchName: student.batch.batch_name,
+        batchSlug: student.batch.slug,
+        cityId: student.city.id,
+        cityName: student.city.city_name,
+      }),
     });
 
     const refreshToken = generateRefreshToken({
@@ -420,13 +465,20 @@ export const googleLogin = async (req: Request, res: Response) => {
 // Student Logout
 export const logoutStudent = async (req: Request, res: Response) => {
   try {
-    // In a stateless JWT setup, logout is typically handled client-side
-    // by removing the token from storage. But we can provide a response
-    // to confirm the logout action.
+    // Get student info from middleware
+    const studentId = (req as any).student?.id;
+    
+    if (studentId) {
+      // Clear refresh token from database
+      await prisma.student.update({
+        where: { id: studentId },
+        data: { refresh_token: null }
+      });
+    }
     
     res.json({
       message: "Student logout successful",
-      // Optionally, you could add token blacklisting here if needed
+      // Refresh token cleared from database
     });
   } catch (error) {
     console.error("Student logout error:", error);
@@ -437,7 +489,16 @@ export const logoutStudent = async (req: Request, res: Response) => {
 // Admin Logout
 export const logoutAdmin = async (req: Request, res: Response) => {
   try {
-    // Similar to student logout, this is typically handled client-side
+    // Get admin info from middleware
+    const adminId = (req as any).admin?.id;
+    
+    if (adminId) {
+      // Clear refresh token from database
+      await prisma.admin.update({
+        where: { id: adminId },
+        data: { refresh_token: null }
+      });
+    }
     // by removing the token from storage.
     
     res.json({

@@ -10,7 +10,7 @@ import { createQuestion, deleteQuestion, getAllQuestions, getAssignedQuestionsCo
 import { bulkUploadQuestions } from "../controllers/questionBulk.controller";
 import { upload } from "../middlewares/upload.middleware";
 import { getDashboardController } from "../controllers/dashboard.controller";
-import { getLeaderboardPost, recalculateLeaderboard } from "../controllers/leaderboard.controller";
+import { recalculateLeaderboard, getAdminLeaderboard } from "../controllers/leaderboard.controller";
 import { assignQuestionsToClass, getAssignedQuestionsOfClass, removeQuestionFromClass } from "../controllers/questionVisibility.controller";
 import { createClassInTopic, deleteClass, getClassDetails, getClassesByTopic, updateClass } from "../controllers/class.controller";
 import { manualSync } from "../controllers/progress.controller";
@@ -82,8 +82,7 @@ router.post(
 router.get("/dashboard", getDashboardController);
 
 // Leaderboard
-router.post("/leaderboard", verifyToken, isAdmin, getLeaderboardPost);
-
+router.post("/leaderboard", verifyToken, isAdmin, getAdminLeaderboard); // Single admin leaderboard with pagination and search
 router.post("/leaderboard/recalculate", verifyToken, isAdmin, recalculateLeaderboard);
 
 router.get("/questions", getAssignedQuestionsController);

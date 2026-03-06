@@ -285,28 +285,67 @@ GET /api/student/leaderboard?type=global|city|batch|batch-city
 **Response:**
 ```json
 {
-  "type": "batch-city",
-  "studentRank": 5,
-  "totalCount": 120,
-  "leaderboard": [
+  "success": true,
+  "data": [
     {
-      "rank": 1,
-      "student": {
-        "id": 123,
-        "name": "Alice Johnson",
-        "username": "alice",
-        "city": "Bangalore",
-        "batch": "SOT 2025"
-      },
-      "stats": {
-        "totalSolved": 150,
-        "maxStreak": 25,
-        "easyCount": 60,
-        "mediumCount": 70,
-        "hardCount": 20
-      }
+      "global_rank": 1,
+      "city_rank": 1,
+      "student_id": 123,
+      "name": "Alice Johnson",
+      "username": "alice",
+      "city_name": "Bangalore",
+      "year": 2025,
+      "hard_completion": 85.5,
+      "medium_completion": 75.0,
+      "easy_completion": 90.0,
+      "score": 245.75,
+      "max_streak": 25,
+      "total_solved": 150
     }
-  ]
+  ],
+  "yourRank": {
+    "global_rank": 5,
+    "city_rank": 2,
+    "student_details": {
+      "student_id": 456,
+      "name": "John Doe",
+      "username": "johndoe",
+      "email": "john@example.com",
+      "city": "Bangalore",
+      "batch": "SOT 2025",
+      "year": 2025,
+      "leetcode_id": "johnleetcode",
+      "gfg_id": "johngfg",
+      "lc_total_solved": 120,
+      "gfg_total_solved": 85,
+      "last_synced_at": "2025-03-06T12:00:00Z"
+    },
+    "rank_statistics": {
+      "global_rank": 5,
+      "city_rank": 2,
+      "score": 180.25,
+      "max_streak": 12,
+      "total_solved": 95,
+      "hard_completion": 65.0,
+      "medium_completion": 70.0,
+      "easy_completion": 85.0
+    },
+    "problem_solving_stats": {
+      "total_questions_solved": 95,
+      "easy_solved": 40,
+      "medium_solved": 35,
+      "hard_solved": 20,
+      "recent_solutions": [
+        {
+          "question_name": "Two Sum Problem",
+          "level": "EASY",
+          "platform": "LEETCODE",
+          "topic": "Arrays",
+          "solved_at": "2025-03-05T10:30:00Z"
+        }
+      ]
+    }
+  }
 }
 ```
 

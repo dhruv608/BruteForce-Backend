@@ -270,11 +270,11 @@ export const recalculateLeaderboardService = async () => {
         let medium = 0;
         let easy = 0;
 
-        solved.forEach((s) => {
+        solved.forEach((s: any) => {
 
-            if (s.question.level === "HARD") hard++;
-            if (s.question.level === "MEDIUM") medium++;
-            if (s.question.level === "EASY") easy++;
+            if ((s as any).question.level === "HARD") hard++;
+            if ((s as any).question.level === "MEDIUM") medium++;
+            if ((s as any).question.level === "EASY") easy++;
 
         });
 
@@ -290,7 +290,7 @@ export const recalculateLeaderboardService = async () => {
         const uniqueDates = new Set<string>();
 
         solved.forEach((s) => {
-            const date = s.sync_at.toISOString().split("T")[0];
+            const date = (s as any).sync_at.toISOString().split("T")[0];
             uniqueDates.add(date);
         });
 
@@ -342,4 +342,205 @@ export const recalculateLeaderboardService = async () => {
 
     }
 
+};
+
+// Shared leaderboard service with pagination and search support
+export const getLeaderboardWithPagination = async (filters: any, pagination?: any, search?: any) => {
+    const { type, city, year } = filters;
+    const { page = 1, limit = 10 } = pagination || {};
+    
+    try {
+        let timeFilter = "";
+        if (type === "weekly") {
+            timeFilter = `AND sp.sync_at >= date_trunc('week', now())`;
+        }
+        if (type === "monthly") {
+            timeFilter = `AND sp.sync_at >= date_trunc('month', now())`;
+        }
+
+        let cityFilter = "";
+        let yearFilter = "";
+        if (city && city !== "all") {
+            cityFilter = `AND c.city_name = '${city}'`;
+        }
+        if (year) {
+            yearFilter = `AND b.year = ${year}`;
+        }
+
+        let searchFilter = "";
+        if (search) {
+            searchFilter = `AND (s.username ILIKE '%${search}%' OR s.email ILIKE '%${search}%' OR s.name ILIKE '%${search}%')`;
+        }
+
+        const skip = (page - 1) * limit;
+        const take = Number(limit);
+
+        // Get total count for pagination
+        const countQuery = await prisma.$queryRawUnsafe(`
+            SELECT COUNT(*) as total
+            FROM "Student" s
+            JOIN "Batch" b ON b.id = s.batch_id
+            JOIN "City" c ON c.id = s.city_id
+            JOIN "Leaderboard" l ON l.student_id = s.id
+            WHERE 1=1
+            ${cityFilter}
+            ${yearFilter}
+            ${searchFilter}
+        `);
+        
+        const totalStudents = Number((countQuery as any)[0].total);
+
+        // Get leaderboard data with pagination
+        const leaderboard = await prisma.$queryRawUnsafe(`
+            WITH assigned_questions AS (
+                SELECT
+                    b.id AS batch_id,
+                    COUNT(*) FILTER (WHERE q.level='HARD')   AS hard_assigned,
+                    COUNT(*) FILTER (WHERE q.level='MEDIUM') AS medium_assigned,
+                    COUNT(*) FILTER (WHERE q.level='EASY')   AS easy_assigned
+                FROM "QuestionVisibility" qv
+                JOIN "Question" q ON q.id = qv.question_id
+                JOIN "Class" c ON c.id = qv.class_id
+                JOIN "Batch" b ON b.id = c.batch_id
+                GROUP BY b.id
+            ),
+            student_solves AS (
+                SELECT
+                    sp.student_id,
+                    COUNT(*) FILTER (WHERE q.level='HARD')   AS hard_solved,
+                    COUNT(*) FILTER (WHERE q.level='MEDIUM') AS medium_solved,
+                    COUNT(*) FILTER (WHERE q.level='EASY')   AS easy_solved,
+                    COUNT(*) AS total_solved
+                FROM "StudentProgress" sp
+                JOIN "Question" q ON q.id = sp.question_id
+                WHERE 1=1
+                ${timeFilter}
+                GROUP BY sp.student_id
+            ),
+            final_stats AS (
+                SELECT
+                    s.id AS student_id,
+                    s.name,
+                    s.username,
+                    c.city_name,
+                    b.year AS batch_year,
+                    COALESCE(ss.hard_solved,0)   AS hard_solved,
+                    COALESCE(ss.medium_solved,0) AS medium_solved,
+                    COALESCE(ss.easy_solved,0)   AS easy_solved,
+                    COALESCE(ss.total_solved,0) AS total_solved,
+                    aq.hard_assigned,
+                    aq.medium_assigned,
+                    aq.easy_assigned,
+                    CASE
+                        WHEN aq.hard_assigned IS NULL OR aq.hard_assigned = 0 THEN 
+                            CASE 
+                                WHEN (SELECT COUNT(*) FROM "Question" WHERE level='HARD') = 0 THEN 0
+                                ELSE ROUND((COALESCE(ss.hard_solved,0)::numeric / (SELECT COUNT(*) FROM "Question" WHERE level='HARD')::numeric) * 100, 2)
+                            END
+                        ELSE ROUND((COALESCE(ss.hard_solved,0)::numeric / aq.hard_assigned::numeric) * 100, 2)
+                    END AS hard_completion,
+                    CASE
+                        WHEN aq.medium_assigned IS NULL OR aq.medium_assigned = 0 THEN 
+                            CASE 
+                                WHEN (SELECT COUNT(*) FROM "Question" WHERE level='MEDIUM') = 0 THEN 0
+                                ELSE ROUND((COALESCE(ss.medium_solved,0)::numeric / (SELECT COUNT(*) FROM "Question" WHERE level='MEDIUM')::numeric) * 100, 2)
+                            END
+                        ELSE ROUND((COALESCE(ss.medium_solved,0)::numeric / aq.medium_assigned::numeric) * 100, 2)
+                    END AS medium_completion,
+                    CASE
+                        WHEN aq.easy_assigned IS NULL OR aq.easy_assigned = 0 THEN 
+                            CASE 
+                                WHEN (SELECT COUNT(*) FROM "Question" WHERE level='EASY') = 0 THEN 0
+                                ELSE ROUND((COALESCE(ss.easy_solved,0)::numeric / (SELECT COUNT(*) FROM "Question" WHERE level='EASY')::numeric) * 100, 2)
+                            END
+                        ELSE ROUND((COALESCE(ss.easy_solved,0)::numeric / aq.easy_assigned::numeric) * 100, 2)
+                    END AS easy_completion,
+                    ROUND(
+                        (COALESCE(ss.hard_solved,0)::numeric / NULLIF(aq.hard_assigned,0) * 20) +
+                        (COALESCE(ss.medium_solved,0)::numeric / NULLIF(aq.medium_assigned,0) * 15) +
+                        (COALESCE(ss.easy_solved,0)::numeric / NULLIF(aq.easy_assigned,0) * 10), 2
+                    ) AS score,
+                    COALESCE(l.max_streak, 0) AS max_streak
+                FROM "Student" s
+                JOIN "Batch" b ON b.id = s.batch_id
+                JOIN "City" c ON c.id = s.city_id
+                JOIN "Leaderboard" l ON l.student_id = s.id
+                LEFT JOIN student_solves ss ON ss.student_id = s.id
+                LEFT JOIN assigned_questions aq ON aq.batch_id = b.id
+                WHERE 1=1
+                ${cityFilter}
+                ${yearFilter}
+                ${searchFilter}
+            )
+            SELECT
+                ROW_NUMBER() OVER (
+                    ORDER BY score DESC,
+                             hard_completion DESC,
+                             medium_completion DESC,
+                             easy_completion DESC,
+                             max_streak DESC,
+                             total_solved DESC
+                ) AS global_rank,
+                ROW_NUMBER() OVER (
+                    PARTITION BY city_name
+                    ORDER BY score DESC,
+                             hard_completion DESC,
+                             medium_completion DESC,
+                             easy_completion DESC,
+                             max_streak DESC,
+                             total_solved DESC
+                ) AS city_rank,
+                student_id,
+                name,
+                username,
+                city_name,
+                batch_year AS year,
+                hard_completion,
+                medium_completion,
+                easy_completion,
+                score,
+                max_streak,
+                total_solved
+            FROM final_stats
+            ORDER BY global_rank
+            LIMIT ${take} OFFSET ${skip}
+        `);
+
+        // Normalize results
+        const normalized = (leaderboard as any[]).map((row) => {
+            const out: any = {};
+            for (const key of Object.keys(row)) {
+                const val = (row as any)[key];
+                if (typeof val === "bigint") {
+                    out[key] = Number(val);
+                    continue;
+                }
+                if (val && typeof val === "object" && typeof (val as any).toNumber === "function") {
+                    try {
+                        out[key] = (val as any).toNumber();
+                        continue;
+                    } catch {
+                        out[key] = (val as any).toString();
+                        continue;
+                    }
+                }
+                out[key] = val;
+            }
+            return out;
+        });
+
+        return {
+            leaderboard: normalized,
+            pagination: {
+                page: Number(page),
+                limit: take,
+                totalStudents,
+                totalPages: Math.ceil(totalStudents / take)
+            }
+        };
+
+    } catch (error) {
+        console.error("Leaderboard pagination error:", error);
+        throw new Error(error instanceof Error ? error.message : String(error));
+    }
 };

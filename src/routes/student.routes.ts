@@ -5,6 +5,7 @@ import { extractStudentInfo } from "../middlewares/student.middleware";
 import { getTopicsWithBatchProgress, getTopicOverviewWithClassesSummary } from "../controllers/topic.controller";
 import { getClassDetailsWithFullQuestions } from "../controllers/class.controller";
 import { getAllQuestionsWithFilters } from "../controllers/questionVisibility.controller";
+import { getStudentLeaderboard } from "../controllers/leaderboard.controller";
 
 const router = Router();
 
@@ -23,11 +24,7 @@ router.get("/topics/:topicSlug/classes/:classSlug", getClassDetailsWithFullQuest
 // ===== Global  QUESTIONS ROUTES =====
 router.get("/addedQuestions", getAllQuestionsWithFilters); // All questions with filters and solved status
 
-
 // ===== LEADERBOARD ROUTES =====
-// router.get("/leaderboard", getLeaderboardByType); // All leaderboard types with filters (type=global|city|batch|batch-city)
-
-
-
+router.post("/leaderboard", getStudentLeaderboard); // Single student leaderboard with top 10 and personal rank
 
 export default router;

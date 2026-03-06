@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { AccessTokenPayload } from "../utils/jwt.util";
 
 export interface StudentRequest extends Request {
-  student?: AccessTokenPayload;
+  student?: AccessTokenPayload;  // 🔑 Added student property
   batchId?: number;
   batchName?: string;
   batchSlug?: string;
@@ -15,7 +15,8 @@ export const extractStudentInfo = (req: StudentRequest, res: Response, next: Nex
   
   if (user?.userType === 'student') {
     // 🔑 Extract student-specific info from token
-    req.student = user;
+    req.student = user; // Set the entire user object
+    req.studentId = user.id; // Set studentId explicitly
     req.batchId = user.batchId;
     req.batchName = user.batchName;
     req.batchSlug = user.batchSlug;
@@ -23,6 +24,7 @@ export const extractStudentInfo = (req: StudentRequest, res: Response, next: Nex
     req.cityName = user.cityName;
     
     console.log('Student middleware extracted:', {
+      studentId: req.studentId,
       batchId: req.batchId,
       batchName: req.batchName,
       batchSlug: req.batchSlug,

@@ -35,6 +35,7 @@ router.delete("/cities/:id", deleteCity);
 
 
 // ===== BATCH =====
+router.get("/batches", getAllBatches);
 router.post("/batches", createBatch);
 router.patch("/batches/:id", updateBatch);
 router.delete("/batches/:id", deleteBatch);

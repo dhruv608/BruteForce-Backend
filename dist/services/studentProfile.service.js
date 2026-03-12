@@ -123,70 +123,88 @@ const getCodingStats = async (studentId) => {
 exports.getCodingStats = getCodingStats;
 const getStreakInfo = async (studentId) => {
     try {
-        const progress = await prisma_1.default.studentProgress.findMany({
-            where: { student_id: studentId },
-            select: { sync_at: true },
-            orderBy: { sync_at: "asc" }
-        });
-        if (progress.length === 0) {
+        // Get solved counts grouped by date for the last 365 days
+        const solvedData = await prisma_1.default.$queryRaw `
+      SELECT
+        DATE(sp.sync_at) as date,
+        COUNT(*) as count
+      FROM "StudentProgress" sp
+      WHERE sp.student_id = ${studentId}
+      AND sp.sync_at >= CURRENT_DATE - INTERVAL '365 days'
+      GROUP BY DATE(sp.sync_at)
+      ORDER BY date DESC
+    `;
+        const result = solvedData;
+        if (result.length === 0) {
             return {
                 currentStreak: 0,
                 maxStreak: 0,
                 // questionsSolvedInCurrentStreak: 0
             };
         }
-        const uniqueDates = new Set();
-        progress.forEach(p => {
-            const date = p.sync_at.toISOString().split("T")[0];
-            uniqueDates.add(date);
+        // Build map of solved counts
+        const solvedMap = new Map();
+        result.forEach(row => {
+            const dateStr = row.date.toISOString().split("T")[0];
+            solvedMap.set(dateStr, Number(row.count));
         });
-        const dates = Array.from(uniqueDates).sort();
-        let currentStreak = 0;
-        let maxStreak = 0;
-        const today = new Date().toISOString().split("T")[0];
-        let currentStreakQuestions = 0;
-        for (let i = 0; i < dates.length; i++) {
-            if (i === 0) {
-                currentStreak = 1;
+        // Generate last 365 days with priority logic
+        const today = new Date();
+        const dailyCounts = [];
+        for (let i = 0; i < 365; i++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split("T")[0];
+            const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+            let count;
+            const solvedCount = solvedMap.get(dateStr) || 0;
+            // Priority logic:
+            // 1️⃣ if solvedCount > 0 → return solvedCount
+            // 2️⃣ else if weekend → return -1  
+            // 3️⃣ else → return 0
+            if (solvedCount > 0) {
+                count = solvedCount;
+            }
+            else if (dayOfWeek === 0 || dayOfWeek === 6) { // Sunday or Saturday
+                count = -1; // No question day (weekend)
             }
             else {
-                const prev = new Date(dates[i - 1]);
-                const curr = new Date(dates[i]);
-                const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
-                if (diff === 1) {
-                    currentStreak++;
-                }
-                else {
-                    currentStreak = 1;
-                }
+                count = 0; // Missed day (weekday with no solves)
             }
-            maxStreak = Math.max(maxStreak, currentStreak);
+            dailyCounts.push({ date: dateStr, count });
         }
-        const todayIndex = dates.indexOf(today);
-        if (todayIndex !== -1) {
-            currentStreak = 1;
-            currentStreakQuestions = 1;
-            for (let i = todayIndex - 1; i >= 0; i--) {
-                const curr = new Date(dates[i + 1]);
-                const prev = new Date(dates[i]);
-                const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
-                if (diff === 1) {
-                    currentStreak++;
-                }
-                else {
-                    break;
-                }
+        // Calculate streak ignoring days with count === -1
+        let currentStreak = 0;
+        let maxStreak = 0;
+        // Find current streak (from today backwards)
+        for (let i = 0; i < dailyCounts.length; i++) {
+            const day = dailyCounts[i];
+            if (day.count === -1) {
+                // Skip no-question days, don't break streak
+                continue;
             }
-            for (let i = todayIndex; i >= 0; i--) {
-                const curr = new Date(dates[i]);
-                const prev = i > 0 ? new Date(dates[i - 1]) : null;
-                const next = i < dates.length - 1 ? new Date(dates[i + 1]) : null;
-                if (i === todayIndex || (next && (next.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24) === 1)) {
-                    currentStreakQuestions++;
-                }
-                else {
-                    break;
-                }
+            if (day.count > 0) {
+                currentStreak++;
+            }
+            else {
+                // day.count === 0 (missed day), break current streak
+                break;
+            }
+        }
+        // Calculate max streak from all data
+        let tempStreak = 0;
+        for (const day of dailyCounts.reverse()) { // Process from oldest to newest
+            if (day.count === -1) {
+                // Skip no-question days, don't break streak
+                continue;
+            }
+            if (day.count > 0) {
+                tempStreak++;
+                maxStreak = Math.max(maxStreak, tempStreak);
+            }
+            else {
+                // day.count === 0 (missed day), reset temp streak
+                tempStreak = 0;
             }
         }
         return {
@@ -196,7 +214,8 @@ const getStreakInfo = async (studentId) => {
         };
     }
     catch (error) {
-        throw new Error("Streak calculation failed: " + (error instanceof Error ? error.message : String(error)));
+        throw new Error("Error occurred in STREAK module: " +
+            (error instanceof Error ? error.message : String(error)));
     }
 };
 exports.getStreakInfo = getStreakInfo;

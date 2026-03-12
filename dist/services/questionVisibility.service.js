@@ -183,30 +183,34 @@ const getAllQuestionsWithFiltersService = async ({ studentId, batchId, filters }
     const startIndex = (filters.page - 1) * filters.limit;
     const endIndex = startIndex + filters.limit;
     const paginatedQuestions = questions.slice(startIndex, endIndex);
-    // Get filter options for frontend
-    const uniqueTopics = Array.from(uniqueQuestions.values()).map((q) => q.topic);
-    const topics = uniqueTopics.filter((topic, index, self) => self.findIndex(t => t.id === topic.id) === index);
-    const levels = ['EASY', 'MEDIUM', 'HARD'];
-    const platforms = ['LEETCODE', 'CODEFORCES', 'GEEKSFORGEEKS'];
-    const types = ['HOMEWORK', 'CLASSWORK', 'CONTEST'];
+    // Get filter options for frontend (based on filtered questions only)
+    const filteredTopics = questions.map((q) => q.topic);
+    const topics = filteredTopics.filter((topic, index, self) => self.findIndex(t => t.id === topic.id) === index);
+    // Extract unique values from filtered questions
+    const levels = [...new Set(questions.map((q) => q.level))].sort();
+    const platforms = [...new Set(questions.map((q) => q.platform))].sort();
+    const types = [...new Set(questions.map((q) => q.type))].sort();
+    // Also include all available enum values for complete filter options
+    const allLevels = ['EASY', 'MEDIUM', 'HARD'];
+    const allPlatforms = ['LEETCODE', 'GFG', 'OTHER', 'INTERVIEWBIT'];
+    const allTypes = ['HOMEWORK', 'CLASSWORK'];
     return {
         questions: paginatedQuestions,
         pagination: {
             page: filters.page,
             limit: filters.limit,
-            total,
+            totalQuestions: total,
             totalPages: Math.ceil(total / filters.limit)
         },
         filters: {
             topics,
-            levels,
-            platforms,
-            types
+            levels: allLevels, // All enum values from database
+            platforms: allPlatforms, // All enum values from database  
+            types: allTypes // All enum values from database
         },
         stats: {
             total,
-            solved: questions.filter(q => q.isSolved).length,
-            unsolved: questions.filter(q => !q.isSolved).length
+            solved: questions.filter(q => q.isSolved).length
         }
     };
 };

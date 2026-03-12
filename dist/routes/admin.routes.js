@@ -12,12 +12,14 @@ const question_controller_1 = require("../controllers/question.controller");
 const questionBulk_controller_1 = require("../controllers/questionBulk.controller");
 const upload_middleware_1 = require("../middlewares/upload.middleware");
 const dashboard_controller_1 = require("../controllers/dashboard.controller");
+const admin_controller_1 = require("../controllers/admin.controller");
 const leaderboard_controller_1 = require("../controllers/leaderboard.controller");
 const questionVisibility_controller_1 = require("../controllers/questionVisibility.controller");
 const class_controller_1 = require("../controllers/class.controller");
 const progress_controller_1 = require("../controllers/progress.controller");
 const test_controller_1 = require("../controllers/test.controller");
 const student_controller_1 = require("../controllers/student.controller");
+const bulk_controller_1 = require("../controllers/bulk.controller");
 // import {
 //   getStudentsForBatch,
 //   getStudentReport,
@@ -54,6 +56,8 @@ router.post("/questions/bulk-upload", role_middleware_1.isTeacherOrAbove, upload
 // Student CRUD
 // Update
 router.get("/dashboard", dashboard_controller_1.getDashboardController);
+// Admin Statistics
+router.get("/stats", admin_controller_1.getAdminStats);
 // Leaderboard
 router.post("/leaderboard", auth_middleware_1.verifyToken, role_middleware_1.isAdmin, leaderboard_controller_1.getAdminLeaderboard); // Single admin leaderboard with pagination and search
 router.post("/leaderboard/recalculate", auth_middleware_1.verifyToken, role_middleware_1.isAdmin, leaderboard_controller_1.recalculateLeaderboard);
@@ -68,6 +72,7 @@ router.post("/students/progress", role_middleware_1.isTeacherOrAbove, role_middl
 router.get("/test/leetcode/:username", test_controller_1.testLeetcode);
 router.get("/test/gfg/:username", test_controller_1.testGfg);
 router.post("/students/sync/:id", progress_controller_1.manualSync);
+router.post("/bulk-operations", upload_middleware_1.upload.single("file"), bulk_controller_1.bulkStudentUploadController);
 // Everything below requires valid batchSlug
 router.use("/:batchSlug", batch_middleware_1.resolveBatch);
 /* ---------- Overview ---------- */

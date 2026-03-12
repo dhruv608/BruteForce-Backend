@@ -10,8 +10,7 @@ const role_middleware_1 = require("../middlewares/role.middleware");
 const city_controller_1 = require("../controllers/city.controller");
 // Batch controllers
 const batch_controller_1 = require("../controllers/batch.controller");
-// Admin management
-const auth_controller_1 = require("../controllers/auth.controller");
+const admin_controller_1 = require("../controllers/admin.controller");
 const prisma_1 = __importDefault(require("../config/prisma"));
 const router = (0, express_1.Router)();
 // All routes require authentication + SUPERADMIN role
@@ -27,11 +26,11 @@ router.get("/batches", batch_controller_1.getAllBatches);
 router.patch("/batches/:id", batch_controller_1.updateBatch);
 router.delete("/batches/:id", batch_controller_1.deleteBatch);
 // ===== ADMIN =====
-// ===== ADMIN MANAGEMENT (Create Teachers/Interns) =====
-router.post("/admins", auth_controller_1.registerAdmin);
-// router.get("/admins", getAllAdmins);
-// router.patch("/admins/:id", updateAdmin);
-// router.delete("/admins/:id", deleteAdmin);
+// ===== ADMIN MANAGEMENT =====
+router.post("/admins", admin_controller_1.createAdminController); // Create admin
+router.get("/admins", admin_controller_1.getAllAdminsController); // Get all admins with filters
+router.patch("/admins/:id", admin_controller_1.updateAdminController); // Update admin
+router.delete("/admins/:id", admin_controller_1.deleteAdminController); // Delete admin
 // ===== SYSTEM STATS =====
 router.get("/stats", async (req, res) => {
     try {

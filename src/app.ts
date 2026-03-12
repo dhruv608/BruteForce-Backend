@@ -9,6 +9,7 @@ import { errorHandler } from './middlewares/errorHandler.middleware';
 import studentRoutes from "./routes/student.routes";
 import adminRoutes from "./routes/admin.routes";
 import superadminRoutes from './routes/superadmin.routes';
+import { startSyncJob } from './jobs/sync.job';
 
 dotenv.config();
 
@@ -43,5 +44,8 @@ app.get('/health', (req, res) => {
 
 // Error handler (must be last)
 app.use(errorHandler);
+
+// Initialize cron jobs for leaderboard optimization
+startSyncJob();
 
 export default app;

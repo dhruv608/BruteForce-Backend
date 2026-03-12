@@ -169,19 +169,25 @@ const getTopicsWithBatchProgressService = async ({ studentId, batchId, }) => {
                             }
                         }
                     }
-                }
+                },
+                orderBy: { created_at: 'asc' }
             }
-        },
-        orderBy: { created_at: 'asc' }
+        }
     });
-    // Get student's solved questions for these topics
-    const topicIds = topics.map(topic => topic.id);
+    // Get all question IDs assigned to this batch
+    const assignedQuestionIds = new Set();
+    topics.forEach((topic) => {
+        topic.classes.forEach((cls) => {
+            cls.questionVisibility.forEach((qv) => {
+                assignedQuestionIds.add(qv.question.id);
+            });
+        });
+    });
+    // Get student's solved questions for this batch only
     const studentProgress = await prisma_1.default.studentProgress.findMany({
         where: {
             student_id: studentId,
-            question: {
-                topic_id: { in: topicIds }
-            }
+            question_id: { in: Array.from(assignedQuestionIds) }
         },
         include: {
             question: {
@@ -255,13 +261,18 @@ const getTopicOverviewWithClassesSummaryService = async ({ studentId, batchId, t
     if (!topic) {
         throw new Error("Topic not found");
     }
-    // Get student's solved questions for this topic
+    // Get all question IDs assigned to this batch for this topic
+    const assignedQuestionIds = new Set();
+    topic.classes.forEach((cls) => {
+        cls.questionVisibility.forEach((qv) => {
+            assignedQuestionIds.add(qv.question.id);
+        });
+    });
+    // Get student's solved questions for this batch only
     const studentProgress = await prisma_1.default.studentProgress.findMany({
         where: {
             student_id: studentId,
-            question: {
-                topic_id: topic.id
-            }
+            question_id: { in: Array.from(assignedQuestionIds) }
         },
         include: {
             question: {

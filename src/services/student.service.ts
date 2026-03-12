@@ -20,6 +20,7 @@ export const getAllStudentsService = async (query: any) => {
                 { name: { contains: search, mode: "insensitive" } },
                 { email: { contains: search, mode: "insensitive" } },
                 { username: { contains: search, mode: "insensitive" } },
+                { enrollment_id: { contains: search, mode: "insensitive" } },
             ];
         }
 
@@ -70,10 +71,27 @@ export const getAllStudentsService = async (query: any) => {
             name: student.name,
             email: student.email,
             username: student.username,
+            enrollment_id: student.enrollment_id,
+
             city: student.city?.city_name || null,
             batch: student.batch?.batch_name || null,
+
+            leetcode_id: student.leetcode_id,
+            gfg_id: student.gfg_id,
+
+            github: student.github,
+            linkedin: student.linkedin,
+
+            gfg_total_solved: student.gfg_total_solved,
+            lc_total_solved: student.lc_total_solved,
+
             totalSolved: student._count.progress,
-            created_at: student.created_at
+
+            provider: student.provider,
+            last_synced_at: student.last_synced_at,
+
+            created_at: student.created_at,
+            updated_at: student.updated_at
         }));
 
         return formatted;

@@ -20,6 +20,7 @@ const getAllStudentsService = async (query) => {
                 { name: { contains: search, mode: "insensitive" } },
                 { email: { contains: search, mode: "insensitive" } },
                 { username: { contains: search, mode: "insensitive" } },
+                { enrollment_id: { contains: search, mode: "insensitive" } },
             ];
         }
         // city filter
@@ -64,10 +65,20 @@ const getAllStudentsService = async (query) => {
             name: student.name,
             email: student.email,
             username: student.username,
+            enrollment_id: student.enrollment_id,
             city: student.city?.city_name || null,
             batch: student.batch?.batch_name || null,
+            leetcode_id: student.leetcode_id,
+            gfg_id: student.gfg_id,
+            github: student.github,
+            linkedin: student.linkedin,
+            gfg_total_solved: student.gfg_total_solved,
+            lc_total_solved: student.lc_total_solved,
             totalSolved: student._count.progress,
-            created_at: student.created_at
+            provider: student.provider,
+            last_synced_at: student.last_synced_at,
+            created_at: student.created_at,
+            updated_at: student.updated_at
         }));
         return formatted;
     }
@@ -310,8 +321,8 @@ exports.deleteStudentDetailsService = deleteStudentDetailsService;
 // ==============================
 const createStudentService = async (data) => {
     try {
-        const { name, email, username, password, enrollment_id, batch_id, leetcode_id, gfg_id } = data;
-        // batch exist check karo
+        const { name, email, username, password, enrollment_id, batch_id, leetcode_id, gfg_id, github, linkedin, provider } = data;
+        // batch exist check
         const batch = await prisma_1.default.batch.findUnique({
             where: { id: batch_id },
             select: {
@@ -334,12 +345,33 @@ const createStudentService = async (data) => {
                 password_hash,
                 enrollment_id,
                 batch_id,
-                city_id: batch.city_id, // city automatically batch se
+                city_id: batch.city_id, // city auto from batch
                 leetcode_id,
-                gfg_id
+                gfg_id,
+                github,
+                linkedin,
+                provider
+            },
+            include: {
+                city: true,
+                batch: true
             }
         });
-        return student;
+        return {
+            id: student.id,
+            name: student.name,
+            email: student.email,
+            username: student.username,
+            enrollment_id: student.enrollment_id,
+            city: student.city?.city_name || null,
+            batch: student.batch?.batch_name || null,
+            leetcode_id: student.leetcode_id,
+            gfg_id: student.gfg_id,
+            github: student.github,
+            linkedin: student.linkedin,
+            provider: student.provider,
+            created_at: student.created_at
+        };
     }
     catch (error) {
         if (error instanceof client_1.Prisma.PrismaClientKnownRequestError) {

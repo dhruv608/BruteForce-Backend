@@ -10,13 +10,15 @@ import { createQuestion, deleteQuestion, getAllQuestions, getAssignedQuestionsCo
 import { bulkUploadQuestions } from "../controllers/questionBulk.controller";
 import { upload } from "../middlewares/upload.middleware";
 import { getDashboardController } from "../controllers/dashboard.controller";
+import { getAdminStats } from "../controllers/admin.controller";
 import { recalculateLeaderboard, getAdminLeaderboard } from "../controllers/leaderboard.controller";
+import prisma from "../config/prisma";
 import { assignQuestionsToClass, getAssignedQuestionsOfClass, removeQuestionFromClass } from "../controllers/questionVisibility.controller";
 import { createClassInTopic, deleteClass, getClassDetails, getClassesByTopic, updateClass } from "../controllers/class.controller";
 import { manualSync } from "../controllers/progress.controller";
 import { testGfg, testLeetcode } from "../controllers/test.controller";
 import { addStudentProgressController, createStudentController, deleteStudentDetails, getAllStudentsController, getStudentReportController, updateStudentDetails } from "../controllers/student.controller";
-
+import { bulkStudentUploadController } from "../controllers/bulk.controller";
 
 
 // import {
@@ -81,9 +83,54 @@ router.post(
 
 router.get("/dashboard", getDashboardController);
 
+// Admin Statistics
+router.get("/stats", getAdminStats);
+
 // Leaderboard
+router.get("/leaderboard", getAdminLeaderboard);
 router.post("/leaderboard", verifyToken, isAdmin, getAdminLeaderboard); // Single admin leaderboard with pagination and search
-router.post("/leaderboard/recalculate", verifyToken, isAdmin, recalculateLeaderboard);
+router.post("/leaderboard/recalculate", recalculateLeaderboard);
+
+// 🚨 Emergency: Restore leaderboard data after migration
+router.post("/leaderboard/restore", async (req, res) => {
+  try {
+    console.log("🔄 Restoring leaderboard data...");
+    
+    // Get all students
+    const students = await prisma.student.findMany({ select: { id: true } });
+    
+    // Create leaderboard entries for each student
+    let created = 0;
+    for (const student of students) {
+      const existing = await (prisma as any).leaderboard.findUnique({
+        where: { student_id: student.id }
+      });
+      
+      if (!existing) {
+        await (prisma as any).leaderboard.create({
+          data: {
+            student_id: student.id,
+            max_streak: 0,
+            easy_count: 0,
+            medium_count: 0,
+            hard_count: 0,
+            total_solved: 0
+          }
+        });
+        created++;
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Restored ${created} leaderboard entries`,
+      totalStudents: students.length 
+    });
+  } catch (error) {
+    console.error("Restore failed:", error);
+    res.status(500).json({ success: false, error: (error as any).message });
+  }
+});
 
 router.get("/questions", getAssignedQuestionsController);
 
@@ -101,7 +148,11 @@ router.get("/test/leetcode/:username", testLeetcode);
 router.get("/test/gfg/:username", testGfg);
 router.post("/students/sync/:id", manualSync);
 
-
+router.post(
+  "/bulk-operations",
+  upload.single("file"),
+  bulkStudentUploadController
+);
 
 // Everything below requires valid batchSlug
 router.use("/:batchSlug", resolveBatch);

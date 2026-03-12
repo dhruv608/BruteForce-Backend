@@ -9,9 +9,9 @@ const sync_worker_1 = require("../workers/sync.worker");
 function startSyncJob() {
     console.log("Sync cron job started");
     // */1 * * * *
-    node_cron_1.default.schedule("0 */4 * * *", async () => {
-        // cron.schedule("*/1 * * * *", async () => {
-        // cron.schedule("* * * * *", async () => {
+    // cron.schedule("0 */4 * * *", async () => {
+    // cron.schedule("*/1 * * * *", async () => {
+    node_cron_1.default.schedule("* * * * *", async () => {
         console.log("Running student progress sync...");
         try {
             await (0, sync_worker_1.runStudentSyncWorker)();

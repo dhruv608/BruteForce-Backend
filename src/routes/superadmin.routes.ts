@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { verifyToken } from "../middlewares/auth.middleware";
 import { isSuperAdmin } from "../middlewares/role.middleware";
-
 // City controllers
 import { 
   createCity, 
@@ -20,6 +19,7 @@ import {
 
 // Admin management
 import { registerAdmin } from "../controllers/auth.controller";
+import { getAdminStats, createAdminController, getAllAdminsController, updateAdminController, deleteAdminController } from "../controllers/admin.controller";
 import prisma from "../config/prisma";
 
 const router = Router();
@@ -47,11 +47,11 @@ router.delete("/batches/:id", deleteBatch);
 
 
 
-// ===== ADMIN MANAGEMENT (Create Teachers/Interns) =====
-router.post("/admins", registerAdmin);                            // not working
-// router.get("/admins", getAllAdmins);
-// router.patch("/admins/:id", updateAdmin);
-// router.delete("/admins/:id", deleteAdmin);
+// ===== ADMIN MANAGEMENT =====
+router.post("/admins", createAdminController);                    // Create admin
+router.get("/admins", getAllAdminsController);             // Get all admins with filters
+router.patch("/admins/:id", updateAdminController);           // Update admin
+router.delete("/admins/:id", deleteAdminController);         // Delete admin
 
 // ===== SYSTEM STATS =====
 router.get("/stats", async (req, res) => {
@@ -67,7 +67,7 @@ router.get("/stats", async (req, res) => {
       prisma.city.count(),
       prisma.batch.count(),
       prisma.student.count(),
-      prisma.admin.count(),
+      (prisma as any).admin.count(),
       prisma.question.count(),
       prisma.topic.count()
     ]);

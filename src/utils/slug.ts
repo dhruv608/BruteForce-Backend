@@ -1,11 +1,11 @@
 import slugify from "slugify";
 
 export const generateBatchSlug = (
-  citySlug: string,
+  city: string,
   batchName: string,
   year: number
 ) => {
-  return `${citySlug}-${slugify(batchName, {
+  return `${city}-${slugify(batchName, {
     lower: true,
     strict: true,
   })}-${year}`;

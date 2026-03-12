@@ -20,9 +20,15 @@ const createCity = async (req, res) => {
 };
 exports.createCity = createCity;
 // Get All Cities
-const getAllCities = async (_req, res) => {
+const getAllCities = async (req, res) => {
     try {
-        const cities = await (0, city_service_1.getAllCitiesService)();
+        const { search } = req.query;
+        let cities = await (0, city_service_1.getAllCitiesService)();
+        // If search parameter is provided, filter cities by name
+        if (search) {
+            const searchTerm = search.toString().toLowerCase();
+            cities = cities.filter(city => city.city_name.toLowerCase().includes(searchTerm));
+        }
         return res.json(cities);
     }
     catch (error) {

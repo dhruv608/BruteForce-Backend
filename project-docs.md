@@ -699,7 +699,7 @@ Authorization: Bearer token
 
 ```json
 {
-  "questions": [
+  "data": [
     {
       "id": 1,
       "question_name": "Two Sum",
@@ -707,36 +707,19 @@ Authorization: Bearer token
       "platform": "LEETCODE",
       "level": "EASY",
       "type": "HOMEWORK",
-      "isSolved": true,
-      "syncAt": "2025-03-10T15:30:00Z",
       "topic": {
-        "id": 1,
         "topic_name": "Arrays and Strings",
         "slug": "arrays-strings"
-      }
+      },
+      "created_at": "2025-03-01T10:00:00Z",
+      "updated_at": "2025-03-01T10:00:00Z"
     }
   ],
   "pagination": {
-    "page": 1,
-    "limit": 20,
-    "totalQuestions": 45,
-    "totalPages": 3
-  },
-  "filters": {
-    "topics": [
-      {
-        "id": 1,
-        "topic_name": "Arrays and Strings",
-        "slug": "arrays-strings"
-      }
-    ],
-    "levels": ["EASY", "MEDIUM", "HARD"],
-    "platforms": ["LEETCODE", "GFG", "OTHER", "INTERVIEWBIT"],
-    "types": ["HOMEWORK", "CLASSWORK"]
-  },
-  "stats": {
     "total": 45,
-    "solved": 23
+    "page": 1,
+    "limit": 10,
+    "totalPages": 5
   }
 }
 ```
@@ -745,16 +728,21 @@ Authorization: Bearer token
 
 ### Response Fields
 
-- **questions**: Array of questions with progress
+- **data**: Array of questions
+  - **id**: Question ID
+  - **question_name**: Question title
+  - **question_link**: URL to the problem
+  - **platform**: Platform (LEETCODE, GFG, OTHER, INTERVIEWBIT)
+  - **level**: Difficulty (EASY, MEDIUM, HARD)
+  - **type**: Assignment type (HOMEWORK, CLASSWORK)
+  - **topic**: Topic information
+  - **created_at**: Creation timestamp
+  - **updated_at**: Last update timestamp
 - **pagination**: Pagination metadata
-- **page**: Current page number
-- **limit**: Items per page
-- **totalQuestions**: Total questions matching filters
-- **totalPages**: Total pages available
-- **filters**: Available filter options
-- **stats**: Question statistics
-- **total**: Total assigned questions
-- **solved**: Total solved questions
+  - **total**: Total number of questions
+  - **page**: Current page number
+  - **limit**: Items per page
+  - **totalPages**: Total number of pages
 
 ---
 
@@ -1018,26 +1006,23 @@ Authorization: Bearer token
 ### Response Example
 
 ```json
-{
-  "topics": [
-    {
-      "id": 1,
-      "topic_name": "Arrays and Strings",
-      "slug": "arrays-strings",
-      "description": "Fundamental data structures",
-      "order": 1,
-      "created_at": "2025-03-01T10:00:00Z",
-      "updated_at": "2025-03-01T10:00:00Z"
-    }
-  ]
-}
+[
+  {
+    "id": 1,
+    "topic_name": "Arrays and Strings",
+    "slug": "arrays-strings",
+    "description": "Fundamental data structures",
+    "order": 1,
+    "created_at": "2025-03-01T10:00:00Z",
+    "updated_at": "2025-03-01T10:00:00Z"
+  }
+]
 ```
 
 ---
 
 ### Response Fields
 
-- **topics**: Array of all topics
 - **id**: Topic ID
 - **topic_name**: Topic name
 - **slug**: URL-friendly identifier
@@ -2117,41 +2102,32 @@ Authorization: Bearer token
 ### Response Example
 
 ```json
-{
-  "cities": [
-    {
-      "id": 1,
-      "city_name": "Bangalore",
-      "slug": "bangalore",
-      "created_at": "2025-03-01T10:00:00Z",
-      "batchCount": 3,
-      "studentCount": 150,
-      "adminCount": 8
-    }
-  ]
-}
+[
+  {
+    "id": 1,
+    "city_name": "Bangalore",
+    "slug": "bangalore",
+    "created_at": "2025-03-01T10:00:00Z"
+  }
+]
 ```
 
 ---
 
 ### Response Fields
 
-- **cities**: Array of cities
 - **id**: City ID
 - **city_name**: City name
 - **slug**: City slug
-- **batchCount**: Number of batches in city
-- **studentCount**: Number of students in city
-- **adminCount**: Number of admins in city
+- **created_at**: City creation timestamp
 
 ---
 
 ### Frontend Behavior
 
 Frontend should:
-• Display city list with statistics
+• Display city list
 • Allow city management (edit/delete)
-• Show batch and student counts
 • Enable city creation
 
 ---
@@ -2268,38 +2244,42 @@ Authorization: Bearer token
 ### Response Example
 
 ```json
-{
-  "batches": [
-    {
+[
+  {
+    "id": 1,
+    "batch_name": "SO-Batch-2025",
+    "slug": "so-batch-2025",
+    "year": 2025,
+    "city_id": 1,
+    "created_at": "2025-03-01T10:00:00Z",
+    "city": {
       "id": 1,
-      "batch_name": "SO-Batch-2025",
-      "slug": "so-batch-2025",
-      "year": 2025,
-      "city": {
-        "id": 1,
-        "city_name": "Bangalore",
-        "slug": "bangalore"
-      },
-      "studentCount": 45,
-      "adminCount": 3,
+      "city_name": "Bangalore",
+      "slug": "bangalore",
       "created_at": "2025-03-01T10:00:00Z"
+    },
+    "_count": {
+      "students": 45,
+      "classes": 12
     }
-  ]
-}
+  }
+]
 ```
 
 ---
 
 ### Response Fields
 
-- **batches**: Array of batches
 - **id**: Batch ID
 - **batch_name**: Batch name
 - **slug**: Batch slug
 - **year**: Batch year
-- **city**: Associated city
-- **studentCount**: Number of students
-- **adminCount**: Number of admins
+- **city_id**: City ID
+- **created_at**: Batch creation timestamp
+- **city**: Associated city object
+- **_count**: Object with counts
+  - **students**: Number of students in batch
+  - **classes**: Number of classes in batch
 
 ---
 
@@ -2307,7 +2287,7 @@ Authorization: Bearer token
 
 Frontend should:
 • Display batch list with city information
-• Show student and admin counts
+• Show student and class counts
 • Allow batch management
 • Enable batch filtering by city
 

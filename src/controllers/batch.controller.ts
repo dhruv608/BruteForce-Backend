@@ -29,15 +29,14 @@ export const createBatch = async (req: Request, res: Response) => {
 
 export const getAllBatches = async (req: Request, res: Response) => {
   try {
-    const { citySlug, year } = req.query;
+    const { city, year } = req.query;
 
     const batches = await getAllBatchesService({
-      citySlug: citySlug as string | undefined,
+      city: city as string | undefined,
       year: year ? Number(year) : undefined,
     });
-
+    
     return res.json(batches);
-
   } catch (error: any) {
     return res.status(400).json({
       error: error.message,

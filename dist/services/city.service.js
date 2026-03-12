@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteCityService = exports.updateCityService = exports.getAllCitiesService = exports.createCityService = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
-const slugify_1 = require("../utils/slugify");
 const createCityService = async ({ city_name, }) => {
     if (!city_name) {
         throw new Error("City name is required");
@@ -16,16 +15,9 @@ const createCityService = async ({ city_name, }) => {
     if (existingName) {
         throw new Error("City already exists");
     }
-    const baseSlug = (0, slugify_1.generateSlug)(city_name);
-    let slug = baseSlug;
-    let counter = 1;
-    while (await prisma_1.default.city.findUnique({ where: { slug } })) {
-        slug = `${baseSlug}-${counter++}`;
-    }
     const city = await prisma_1.default.city.create({
         data: {
             city_name,
-            slug,
         },
     });
     return city;
@@ -35,8 +27,26 @@ exports.createCityService = createCityService;
 const getAllCitiesService = async () => {
     const cities = await prisma_1.default.city.findMany({
         orderBy: { created_at: "desc" },
+        select: {
+            id: true,
+            city_name: true,
+            created_at: true,
+            _count: {
+                select: {
+                    batches: true,
+                    students: true
+                }
+            }
+        }
     });
-    return cities;
+    // Transform the response to include counts directly
+    return cities.map(city => ({
+        id: city.id,
+        city_name: city.city_name,
+        created_at: city.created_at,
+        total_batches: city._count.batches,
+        total_students: city._count.students
+    }));
 };
 exports.getAllCitiesService = getAllCitiesService;
 const updateCityService = async ({ id, city_name, }) => {
@@ -55,22 +65,10 @@ const updateCityService = async ({ id, city_name, }) => {
     if (duplicateName && duplicateName.id !== existingCity.id) {
         throw new Error("City name already in use");
     }
-    const baseSlug = (0, slugify_1.generateSlug)(city_name);
-    let newSlug = baseSlug;
-    let counter = 1;
-    while (await prisma_1.default.city.findFirst({
-        where: {
-            slug: newSlug,
-            NOT: { id: existingCity.id },
-        },
-    })) {
-        newSlug = `${baseSlug}-${counter++}`;
-    }
     const updatedCity = await prisma_1.default.city.update({
         where: { id: existingCity.id },
         data: {
             city_name,
-            slug: newSlug,
         },
     });
     return updatedCity;

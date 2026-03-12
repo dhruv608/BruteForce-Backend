@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
@@ -14,6 +17,7 @@ const upload_middleware_1 = require("../middlewares/upload.middleware");
 const dashboard_controller_1 = require("../controllers/dashboard.controller");
 const admin_controller_1 = require("../controllers/admin.controller");
 const leaderboard_controller_1 = require("../controllers/leaderboard.controller");
+const prisma_1 = __importDefault(require("../config/prisma"));
 const questionVisibility_controller_1 = require("../controllers/questionVisibility.controller");
 const class_controller_1 = require("../controllers/class.controller");
 const progress_controller_1 = require("../controllers/progress.controller");
@@ -39,6 +43,9 @@ router.get("/cities", city_controller_1.getAllCities);
 // Batches
 router.post("/batches", batch_controller_1.createBatch);
 router.get("/batches", batch_controller_1.getAllBatches);
+// Admin Management
+router.post("/admins", admin_controller_1.createAdminController);
+router.get("/admins", admin_controller_1.getAllAdminsController);
 // Global Topics
 router.get("/topics", topic_controller_1.getAllTopics);
 router.post("/topics", role_middleware_1.isTeacherOrAbove, topic_controller_1.createTopic);
@@ -59,8 +66,46 @@ router.get("/dashboard", dashboard_controller_1.getDashboardController);
 // Admin Statistics
 router.get("/stats", admin_controller_1.getAdminStats);
 // Leaderboard
+router.get("/leaderboard", leaderboard_controller_1.getAdminLeaderboard);
 router.post("/leaderboard", auth_middleware_1.verifyToken, role_middleware_1.isAdmin, leaderboard_controller_1.getAdminLeaderboard); // Single admin leaderboard with pagination and search
-router.post("/leaderboard/recalculate", auth_middleware_1.verifyToken, role_middleware_1.isAdmin, leaderboard_controller_1.recalculateLeaderboard);
+router.post("/leaderboard/recalculate", leaderboard_controller_1.recalculateLeaderboard);
+// 🚨 Emergency: Restore leaderboard data after migration
+router.post("/leaderboard/restore", async (req, res) => {
+    try {
+        console.log("🔄 Restoring leaderboard data...");
+        // Get all students
+        const students = await prisma_1.default.student.findMany({ select: { id: true } });
+        // Create leaderboard entries for each student
+        let created = 0;
+        for (const student of students) {
+            const existing = await prisma_1.default.leaderboard.findUnique({
+                where: { student_id: student.id }
+            });
+            if (!existing) {
+                await prisma_1.default.leaderboard.create({
+                    data: {
+                        student_id: student.id,
+                        max_streak: 0,
+                        easy_count: 0,
+                        medium_count: 0,
+                        hard_count: 0,
+                        total_solved: 0
+                    }
+                });
+                created++;
+            }
+        }
+        res.json({
+            success: true,
+            message: `Restored ${created} leaderboard entries`,
+            totalStudents: students.length
+        });
+    }
+    catch (error) {
+        console.error("Restore failed:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 router.get("/questions", question_controller_1.getAssignedQuestionsController);
 router.patch("/students/:id", role_middleware_1.isTeacherOrAbove, role_middleware_1.isAdmin, student_controller_1.updateStudentDetails);
 // Delete (Hard Delete)
@@ -75,8 +120,6 @@ router.post("/students/sync/:id", progress_controller_1.manualSync);
 router.post("/bulk-operations", upload_middleware_1.upload.single("file"), bulk_controller_1.bulkStudentUploadController);
 // Everything below requires valid batchSlug
 router.use("/:batchSlug", batch_middleware_1.resolveBatch);
-/* ---------- Overview ---------- */
-/* ---------- Topics ---------- */
 router.get("/:batchSlug/topics", topic_controller_1.getTopicsForBatch);
 /* ---------- Classes (Topic Driven) ---------- */
 // List classes of a topic

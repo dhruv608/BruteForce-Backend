@@ -7,6 +7,11 @@ interface CreateBatchInput {
   city_id: number;
 }
 
+interface GetAllBatchesInput {
+  city?: string;
+  year?: number;
+}
+
 export const createBatchService = async ({
   batch_name,
   year,
@@ -40,21 +45,8 @@ export const createBatchService = async ({
     );
   }
 
-  if (!city.slug) {
-    throw new Error("City slug is missing");
-  }
-
-  const baseSlug = generateBatchSlug(city.slug, batch_name, year);
-
-  let finalSlug = baseSlug;
-  let counter = 1;
-
-  while (
-    await prisma.batch.findFirst({
-      where: { slug: finalSlug },
-    })
-  ) {
-    finalSlug = `${baseSlug}-${counter++}`;
+  if (!city.city_name) {
+    throw new Error("City name is missing");
   }
 
   const batch = await prisma.batch.create({
@@ -62,7 +54,6 @@ export const createBatchService = async ({
       batch_name,
       year,
       city_id,
-      slug: finalSlug,
     },
   });
 
@@ -71,25 +62,25 @@ export const createBatchService = async ({
 
 
 export const getAllBatchesService = async ({
-  citySlug,
+  city,
   year,
 }: {
-  citySlug?: string;
+  city?: string;
   year?: number;
 }) => {
 
   const filters: any = {};
 
-  if (citySlug) {
-    const city = await prisma.city.findUnique({
-      where: { slug: citySlug },
+  if (city) {
+    const cityData = await prisma.city.findUnique({
+      where: { city_name: city },
     });
 
-    if (!city) {
+    if (!cityData) {
       throw new Error("City not found");
     }
 
-    filters.city_id = city.id;
+    filters.city_id = cityData.id;
   }
 
   if (year) {
@@ -147,10 +138,6 @@ export const updateBatchService = async ({
     throw new Error("City not found");
   }
 
-  if (!city.slug) {
-    throw new Error("City slug is missing");
-  }
-
   // Prevent duplicate inside same city
   const duplicate = await prisma.batch.findFirst({
     where: {
@@ -167,38 +154,12 @@ export const updateBatchService = async ({
     );
   }
 
-  let newSlug = existingBatch.slug;
-
-  // Regenerate slug only if important fields changed
-  if (batch_name || year || city_id) {
-    const baseSlug = generateBatchSlug(
-      city.slug,
-      finalBatchName,
-      finalYear
-    );
-
-    newSlug = baseSlug;
-    let counter = 1;
-
-    while (
-      await prisma.batch.findFirst({
-        where: {
-          slug: newSlug,
-          NOT: { id: existingBatch.id },
-        },
-      })
-    ) {
-      newSlug = `${baseSlug}-${counter++}`;
-    }
-  }
-
   const updatedBatch = await prisma.batch.update({
     where: { id: existingBatch.id },
     data: {
       batch_name: finalBatchName,
       year: finalYear,
       city_id: finalCityId,
-      slug: newSlug,
     },
   });
 

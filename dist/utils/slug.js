@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateBatchSlug = void 0;
 const slugify_1 = __importDefault(require("slugify"));
-const generateBatchSlug = (citySlug, batchName, year) => {
-    return `${citySlug}-${(0, slugify_1.default)(batchName, {
+const generateBatchSlug = (city, batchName, year) => {
+    return `${city}-${(0, slugify_1.default)(batchName, {
         lower: true,
         strict: true,
     })}-${year}`;

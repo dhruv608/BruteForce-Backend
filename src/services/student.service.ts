@@ -27,7 +27,7 @@ export const getAllStudentsService = async (query: any) => {
         // city filter
         if (city) {
             where.city = {
-                slug: city,
+                city_name: city,
             };
         }
 

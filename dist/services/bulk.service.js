@@ -7,7 +7,7 @@ exports.bulkStudentUploadService = void 0;
 const csv_parser_1 = __importDefault(require("csv-parser"));
 const stream_1 = require("stream");
 const prisma_1 = __importDefault(require("../config/prisma"));
-const bulkStudentUploadService = async (fileBuffer) => {
+const bulkStudentUploadService = async (fileBuffer, batch_id) => {
     const rows = [];
     const stream = stream_1.Readable.from(fileBuffer);
     return new Promise((resolve, reject) => {
@@ -15,41 +15,32 @@ const bulkStudentUploadService = async (fileBuffer) => {
             .pipe((0, csv_parser_1.default)())
             .on("data", (data) => rows.push(data))
             .on("end", async () => {
+            // batch check
+            const batch = await prisma_1.default.batch.findUnique({
+                where: { id: batch_id },
+                select: { city_id: true }
+            });
+            if (!batch) {
+                return reject("Batch not found");
+            }
             const studentsData = [];
             let skippedCount = 0;
             for (const row of rows) {
-                // Validate required fields
-                if (!row.name || !row.email || !row.enrollment_id || !row.batch_id) {
+                // Validate required fields from CSV
+                if (!row.name || !row.email || !row.enrollment_id) {
                     console.log("Missing required fields for:", row.name || 'Unknown');
                     skippedCount++;
                     continue;
                 }
-                // Check if batch exists
-                const batch = await prisma_1.default.batch.findUnique({
-                    where: {
-                        id: Number(row.batch_id)
-                    },
-                    select: {
-                        city_id: true
-                    }
-                });
-                if (!batch) {
-                    console.log("Batch not found for:", row.name);
-                    skippedCount++;
-                    continue;
-                }
+                // Generate username from email
+                const username = row.email.split("@")[0];
                 studentsData.push({
                     name: row.name,
                     email: row.email,
-                    username: row.username || row.email.split('@')[0], // Generate username if not provided
+                    username,
                     enrollment_id: row.enrollment_id,
-                    batch_id: Number(row.batch_id),
+                    batch_id,
                     city_id: batch.city_id,
-                    leetcode_id: row.leetcode_id || null,
-                    gfg_id: row.gfg_id || null,
-                    github: row.github || null,
-                    linkedin: row.linkedin || null,
-                    provider: 'bulk_upload',
                     created_at: new Date(),
                     updated_at: new Date()
                 });

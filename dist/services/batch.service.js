@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteBatchService = exports.updateBatchService = exports.getAllBatchesService = exports.createBatchService = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
-const slug_1 = require("../utils/slug");
 const createBatchService = async ({ batch_name, year, city_id, }) => {
     if (!batch_name || !year || !city_id) {
         throw new Error("All fields are required");
@@ -27,38 +26,29 @@ const createBatchService = async ({ batch_name, year, city_id, }) => {
     if (duplicate) {
         throw new Error("Batch with same name and year already exists in this city");
     }
-    if (!city.slug) {
-        throw new Error("City slug is missing");
-    }
-    const baseSlug = (0, slug_1.generateBatchSlug)(city.slug, batch_name, year);
-    let finalSlug = baseSlug;
-    let counter = 1;
-    while (await prisma_1.default.batch.findFirst({
-        where: { slug: finalSlug },
-    })) {
-        finalSlug = `${baseSlug}-${counter++}`;
+    if (!city.city_name) {
+        throw new Error("City name is missing");
     }
     const batch = await prisma_1.default.batch.create({
         data: {
             batch_name,
             year,
             city_id,
-            slug: finalSlug,
         },
     });
     return batch;
 };
 exports.createBatchService = createBatchService;
-const getAllBatchesService = async ({ citySlug, year, }) => {
+const getAllBatchesService = async ({ city, year, }) => {
     const filters = {};
-    if (citySlug) {
-        const city = await prisma_1.default.city.findUnique({
-            where: { slug: citySlug },
+    if (city) {
+        const cityData = await prisma_1.default.city.findUnique({
+            where: { city_name: city },
         });
-        if (!city) {
+        if (!cityData) {
             throw new Error("City not found");
         }
-        filters.city_id = city.id;
+        filters.city_id = cityData.id;
     }
     if (year) {
         filters.year = year;
@@ -95,9 +85,6 @@ const updateBatchService = async ({ id, batch_name, year, city_id, }) => {
     if (!city) {
         throw new Error("City not found");
     }
-    if (!city.slug) {
-        throw new Error("City slug is missing");
-    }
     // Prevent duplicate inside same city
     const duplicate = await prisma_1.default.batch.findFirst({
         where: {
@@ -110,28 +97,12 @@ const updateBatchService = async ({ id, batch_name, year, city_id, }) => {
     if (duplicate) {
         throw new Error("Batch with same name and year already exists in this city");
     }
-    let newSlug = existingBatch.slug;
-    // Regenerate slug only if important fields changed
-    if (batch_name || year || city_id) {
-        const baseSlug = (0, slug_1.generateBatchSlug)(city.slug, finalBatchName, finalYear);
-        newSlug = baseSlug;
-        let counter = 1;
-        while (await prisma_1.default.batch.findFirst({
-            where: {
-                slug: newSlug,
-                NOT: { id: existingBatch.id },
-            },
-        })) {
-            newSlug = `${baseSlug}-${counter++}`;
-        }
-    }
     const updatedBatch = await prisma_1.default.batch.update({
         where: { id: existingBatch.id },
         data: {
             batch_name: finalBatchName,
             year: finalYear,
             city_id: finalCityId,
-            slug: newSlug,
         },
     });
     return updatedBatch;

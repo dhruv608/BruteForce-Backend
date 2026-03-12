@@ -21,9 +21,20 @@ export const createCity = async (req: Request, res: Response) => {
 };
 
 // Get All Cities
-export const getAllCities = async (_req: Request, res: Response) => {
-try {
-    const cities = await getAllCitiesService();
+export const getAllCities = async (req: Request, res: Response) => {
+  try {
+    const { search } = req.query;
+    
+    let cities = await getAllCitiesService();
+    
+    // If search parameter is provided, filter cities by name
+    if (search) {
+      const searchTerm = search.toString().toLowerCase();
+      cities = cities.filter(city => 
+        city.city_name.toLowerCase().includes(searchTerm)
+      );
+    }
+    
     return res.json(cities);
   } catch (error: any) {
     return res.status(500).json({

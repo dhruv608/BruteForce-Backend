@@ -164,7 +164,7 @@ const recalculateLeaderboard = async (req, res) => {
     }
 };
 exports.recalculateLeaderboard = recalculateLeaderboard;
-// Admin Leaderboard API with pagination and search
+// Admin Leaderboard API with pagination and search - OPTIMIZED
 const getAdminLeaderboard = async (req, res) => {
     try {
         // Step 1 — Read filters from request body
@@ -177,20 +177,22 @@ const getAdminLeaderboard = async (req, res) => {
             city: city || 'all',
             year: year || new Date().getFullYear()
         };
-        // Step 4 — Prepare pagination
+        // Step 4 - Prepare pagination
         const pagination = {
             page: Number(page),
             limit: Number(limit)
         };
-        // Step 5 — Fetch leaderboard using shared service
-        const result = await (0, leaderboard_service_1.getLeaderboardWithPagination)(filters, pagination, search);
+        // Step 5 — 🚀 Use optimized cached service
+        const result = await (0, leaderboard_service_1.getCachedLeaderboard)(filters, pagination, search);
         return res.status(200).json({
             success: true,
             page: result.pagination.page,
             limit: result.pagination.limit,
             totalStudents: result.pagination.totalStudents,
             totalPages: result.pagination.totalPages,
-            leaderboard: result.leaderboard
+            leaderboard: result.leaderboard,
+            cached: result.cached || false,
+            lastUpdated: result.lastUpdated || null
         });
     }
     catch (error) {

@@ -1,5 +1,4 @@
 import prisma from "../config/prisma";
-import { generateSlug } from "../utils/slugify";
 
 interface CreateCityInput {
   city_name: string;
@@ -21,19 +20,9 @@ export const createCityService = async ({
     throw new Error("City already exists");
   }
 
-  const baseSlug = generateSlug(city_name);
-
-  let slug = baseSlug;
-  let counter = 1;
-
-  while (await prisma.city.findUnique({ where: { slug } })) {
-    slug = `${baseSlug}-${counter++}`;
-  }
-
   const city = await prisma.city.create({
     data: {
       city_name,
-      slug,
     },
   });
 
@@ -46,9 +35,27 @@ export const createCityService = async ({
 export const getAllCitiesService = async () => {
   const cities = await prisma.city.findMany({
     orderBy: { created_at: "desc" },
+    select: {
+      id: true,
+      city_name: true,
+      created_at: true,
+      _count: {
+        select: {
+          batches: true,
+          students: true
+        }
+      }
+    }
   });
 
-  return cities;
+  // Transform the response to include counts directly
+  return cities.map(city => ({
+    id: city.id,
+    city_name: city.city_name,
+    created_at: city.created_at,
+    total_batches: city._count.batches,
+    total_students: city._count.students
+  }));
 };
 
 //  UPDATE CITY
@@ -81,27 +88,11 @@ export const updateCityService = async ({
   if (duplicateName && duplicateName.id !== existingCity.id) {
     throw new Error("City name already in use");
   }
-  
-  const baseSlug = generateSlug(city_name);
-  let newSlug = baseSlug;
-  let counter = 1;
-
-  while (
-    await prisma.city.findFirst({
-      where: {
-        slug: newSlug,
-        NOT: { id: existingCity.id },
-      },
-    })
-  ) {
-    newSlug = `${baseSlug}-${counter++}`;
-  }
 
   const updatedCity = await prisma.city.update({
     where: { id: existingCity.id },
     data: {
       city_name,
-      slug: newSlug,
     },
   });
 

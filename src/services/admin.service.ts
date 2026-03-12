@@ -56,18 +56,15 @@ export const getCityWiseStats = async () => {
 
 export const createAdminService = async (adminData: any) => {
     try {
-        // Check if email or username already exists
+        // Check if email already exists (removed username check)
         const existingAdmin = await prisma.admin.findFirst({
             where: {
-                OR: [
-                    { email: adminData.email },
-                    { username: adminData.username }
-                ]
+                email: adminData.email
             }
         });
 
         if (existingAdmin) {
-            throw new Error('Email or username already exists');
+            throw new Error('Email already exists');
         }
 
         // Validate city_id if provided
@@ -98,7 +95,6 @@ export const createAdminService = async (adminData: any) => {
             data: {
                 name: adminData.name,
                 email: adminData.email,
-                username: adminData.username,
                 password_hash: hashedPassword,
                 role: adminData.role as AdminRole,
                 city_id: adminData.city_id || null,
@@ -132,19 +128,30 @@ export const createAdminService = async (adminData: any) => {
 
 export const getAllAdminsService = async (filters: any = {}) => {
     try {
-        const { city_id, batch_id, role } = filters;
+        const { city_id, batch_id, role, search } = filters;
+
+        // Build search filter
+        let searchFilter = {};
+        if (search) {
+            searchFilter = {
+                OR: [
+                    { name: { contains: search, mode: 'insensitive' } },
+                    { email: { contains: search, mode: 'insensitive' } }
+                ]
+            };
+        }
 
         const admins = await prisma.admin.findMany({
             where: {
                 ...(city_id && { city_id: parseInt(city_id) }),
                 ...(batch_id && { batch_id: parseInt(batch_id) }),
-                ...(role && { role: role as AdminRole })
+                ...(role && { role: role as AdminRole }),
+                ...searchFilter
             },
             select: {
                 id: true,
                 name: true,
                 email: true,
-                username: true,
                 role: true,
                 created_at: true,
                 updated_at: true,
@@ -185,24 +192,28 @@ export const updateAdminService = async (id: number, updateData: any) => {
             throw new Error('Admin not found');
         }
 
-        // Check for duplicate email/username if updating
-        if (updateData.email || updateData.username) {
+        // Only allow specific field updates (name, email, role, batch_id, city_id)
+        // Remove username from allowed updates
+        const allowedUpdates = ['name', 'email', 'role', 'batch_id', 'city_id'];
+        const invalidUpdates = Object.keys(updateData).filter(key => !allowedUpdates.includes(key));
+        
+        if (invalidUpdates.length > 0) {
+            throw new Error(`Only ${allowedUpdates.join(', ')} can be updated. Invalid fields: ${invalidUpdates.join(', ')}`);
+        }
+
+        // Check for duplicate email if updating email
+        if (updateData.email) {
             const duplicateCheck = await prisma.admin.findFirst({
                 where: {
                     AND: [
                         { id: { not: id } },
-                        {
-                            OR: [
-                                updateData.email && { email: updateData.email },
-                                updateData.username && { username: updateData.username }
-                            ].filter(Boolean)
-                        }
+                        { email: updateData.email }
                     ]
                 }
             });
 
             if (duplicateCheck) {
-                throw new Error('Email or username already exists');
+                throw new Error('Email already exists');
             }
         }
 

@@ -9,7 +9,14 @@ const bulkStudentUploadController = async (req, res) => {
                 message: "CSV file required"
             });
         }
-        const result = await (0, bulk_service_1.bulkStudentUploadService)(req.file.buffer);
+        // Get batch_id from request body
+        const { batch_id } = req.body;
+        if (!batch_id) {
+            return res.status(400).json({
+                message: "batch_id is required in request body"
+            });
+        }
+        const result = await (0, bulk_service_1.bulkStudentUploadService)(req.file.buffer, Number(batch_id));
         res.status(201).json({
             message: "Students upload successful",
             ...(typeof result === 'object' && result !== null ? result : {})
@@ -17,7 +24,8 @@ const bulkStudentUploadController = async (req, res) => {
     }
     catch (error) {
         res.status(500).json({
-            message: "Bulk upload failed"
+            message: "Bulk upload failed",
+            error: error.message || "Unknown error"
         });
     }
 };

@@ -26,9 +26,9 @@ exports.createBatch = createBatch;
 // 📋 GET ALL BATCHES 
 const getAllBatches = async (req, res) => {
     try {
-        const { citySlug, year } = req.query;
+        const { city, year } = req.query;
         const batches = await (0, batch_service_1.getAllBatchesService)({
-            citySlug: citySlug,
+            city: city,
             year: year ? Number(year) : undefined,
         });
         return res.json(batches);

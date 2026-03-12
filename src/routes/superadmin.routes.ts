@@ -5,7 +5,6 @@ import { isSuperAdmin } from "../middlewares/role.middleware";
 import { 
   createCity, 
   getAllCities, 
-  updateCity,
   deleteCity
 } from "../controllers/city.controller";
 
@@ -19,7 +18,8 @@ import {
 
 // Admin management
 import { registerAdmin } from "../controllers/auth.controller";
-import { getAdminStats, createAdminController, getAllAdminsController, updateAdminController, deleteAdminController } from "../controllers/admin.controller";
+import { getAdminStats, getAllAdminsController, updateAdminController, deleteAdminController } from "../controllers/admin.controller";
+import { createSuperAdminController, updateSuperAdminController } from "../controllers/superadmin.controller";
 import prisma from "../config/prisma";
 
 const router = Router();
@@ -31,22 +31,20 @@ router.use(verifyToken, isSuperAdmin);
 
 router.post("/cities", createCity);
 router.get("/cities", getAllCities);
-// router.patch("/cities/:id", updateCity);
 router.delete("/cities/:id", deleteCity);
 
 
 // ===== BATCH =====
 router.post("/batches", createBatch);
-router.get("/batches", getAllBatches);
 router.patch("/batches/:id", updateBatch);
 router.delete("/batches/:id", deleteBatch);
 
 
 
 // ===== ADMIN MANAGEMENT =====
-router.post("/admins", createAdminController);                    // Create admin
+router.post("/admins", createSuperAdminController);                    // Create admin (SuperAdmin - auto fetch city_id from batch)
 router.get("/admins", getAllAdminsController);             // Get all admins with filters
-router.patch("/admins/:id", updateAdminController);           // Update admin
+router.patch("/admins/:id", updateSuperAdminController);           // Update admin (SuperAdmin - only role & batch_id allowed)
 router.delete("/admins/:id", deleteAdminController);         // Delete admin
 
 

@@ -47,11 +47,11 @@ export const createAdminController = async (req: Request, res: Response) => {
     try {
         const adminData = req.body;
 
-        // Validate required fields
-        if (!adminData.name || !adminData.email || !adminData.username || !adminData.password) {
+        // Validate required fields (removed username)
+        if (!adminData.name || !adminData.email || !adminData.password) {
             return res.status(400).json({
                 success: false,
-                message: "Missing required fields: name, email, username, password"
+                message: "Missing required fields: name, email, password"
             });
         }
 

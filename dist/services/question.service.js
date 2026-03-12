@@ -191,13 +191,13 @@ const getAssignedQuestionsService = async (query) => {
         // -----------------------------
         if (city) {
             const cityExists = await prisma_1.default.city.findUnique({
-                where: { slug: city }
+                where: { city_name: city }
             });
             if (!cityExists) {
                 throw new Error("Invalid city");
             }
             batchFilter.city = {
-                slug: city
+                city_name: city
             };
         }
         // -----------------------------
@@ -205,12 +205,17 @@ const getAssignedQuestionsService = async (query) => {
         // -----------------------------
         if (batch) {
             const batchExists = await prisma_1.default.batch.findUnique({
-                where: { slug: batch }
+                where: {
+                    batch_name: batch,
+                    city: {
+                        city_name: city
+                    }
+                }
             });
             if (!batchExists) {
                 throw new Error("Invalid batch");
             }
-            batchFilter.slug = batch;
+            batchFilter.batch_name = batch;
         }
         // -----------------------------
         // YEAR FILTER

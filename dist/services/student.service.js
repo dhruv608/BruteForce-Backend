@@ -26,7 +26,7 @@ const getAllStudentsService = async (query) => {
         // city filter
         if (city) {
             where.city = {
-                slug: city,
+                city_name: city,
             };
         }
         // batch filter
@@ -321,8 +321,8 @@ exports.deleteStudentDetailsService = deleteStudentDetailsService;
 // ==============================
 const createStudentService = async (data) => {
     try {
-        const { name, email, username, password, enrollment_id, batch_id, leetcode_id, gfg_id, github, linkedin, provider } = data;
-        // batch exist check
+        const { name, email, username, password, enrollment_id, batch_id, leetcode_id, gfg_id } = data;
+        // batch exist check karo
         const batch = await prisma_1.default.batch.findUnique({
             where: { id: batch_id },
             select: {
@@ -345,33 +345,12 @@ const createStudentService = async (data) => {
                 password_hash,
                 enrollment_id,
                 batch_id,
-                city_id: batch.city_id, // city auto from batch
+                city_id: batch.city_id, // city automatically batch se
                 leetcode_id,
-                gfg_id,
-                github,
-                linkedin,
-                provider
-            },
-            include: {
-                city: true,
-                batch: true
+                gfg_id
             }
         });
-        return {
-            id: student.id,
-            name: student.name,
-            email: student.email,
-            username: student.username,
-            enrollment_id: student.enrollment_id,
-            city: student.city?.city_name || null,
-            batch: student.batch?.batch_name || null,
-            leetcode_id: student.leetcode_id,
-            gfg_id: student.gfg_id,
-            github: student.github,
-            linkedin: student.linkedin,
-            provider: student.provider,
-            created_at: student.created_at
-        };
+        return student;
     }
     catch (error) {
         if (error instanceof client_1.Prisma.PrismaClientKnownRequestError) {

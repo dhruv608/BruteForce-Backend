@@ -7,11 +7,16 @@ exports.getDashboardService = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const getDashboardService = async (query) => {
     try {
-        const { batchSlug } = query;
+        const { batchSlug, citySlug } = query;
         let batchIds = [];
         if (batchSlug) {
-            const batch = await prisma_1.default.batch.findUnique({
-                where: { slug: batchSlug },
+            const batch = await prisma_1.default.batch.findFirst({
+                where: {
+                    batch_name: batchSlug,
+                    city: {
+                        city_name: citySlug
+                    }
+                },
                 select: { id: true }
             });
             if (!batch) {

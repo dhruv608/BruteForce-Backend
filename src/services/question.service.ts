@@ -304,7 +304,7 @@ export const getAssignedQuestionsService = async (query: any) => {
     if (city) {
 
       const cityExists = await prisma.city.findUnique({
-        where: { slug: city }
+        where: { city_name: city }
       });
 
       if (!cityExists) {
@@ -312,7 +312,7 @@ export const getAssignedQuestionsService = async (query: any) => {
       }
 
       batchFilter.city = {
-        slug: city
+        city_name: city
       };
     }
 
@@ -322,14 +322,19 @@ export const getAssignedQuestionsService = async (query: any) => {
     if (batch) {
 
       const batchExists = await prisma.batch.findUnique({
-        where: { slug: batch }
+        where: { 
+          batch_name: batch,
+          city: {
+            city_name: city
+          }
+        }
       });
 
       if (!batchExists) {
         throw new Error("Invalid batch");
       }
 
-      batchFilter.slug = batch;
+      batchFilter.batch_name = batch;
     }
 
     // -----------------------------

@@ -10,7 +10,7 @@ import { createQuestion, deleteQuestion, getAllQuestions, getAssignedQuestionsCo
 import { bulkUploadQuestions } from "../controllers/questionBulk.controller";
 import { upload } from "../middlewares/upload.middleware";
 import { getDashboardController } from "../controllers/dashboard.controller";
-import { getAdminStats } from "../controllers/admin.controller";
+import { createAdminController, getAdminStats, getAllAdminsController } from "../controllers/admin.controller";
 import { recalculateLeaderboard, getAdminLeaderboard } from "../controllers/leaderboard.controller";
 import prisma from "../config/prisma";
 import { assignQuestionsToClass, getAssignedQuestionsOfClass, removeQuestionFromClass } from "../controllers/questionVisibility.controller";
@@ -46,6 +46,10 @@ router.get("/cities", getAllCities);
 // Batches
 router.post("/batches", createBatch);
 router.get("/batches", getAllBatches);
+
+// Admin Management
+router.post("/admins", createAdminController);
+router.get("/admins", getAllAdminsController);
 
 // Global Topics
 router.get("/topics", getAllTopics);
@@ -156,11 +160,6 @@ router.post(
 
 // Everything below requires valid batchSlug
 router.use("/:batchSlug", resolveBatch);
-
-/* ---------- Overview ---------- */
-
-
-/* ---------- Topics ---------- */
 
 router.get("/:batchSlug/topics", getTopicsForBatch);
 

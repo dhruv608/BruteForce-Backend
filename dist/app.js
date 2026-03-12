@@ -14,6 +14,7 @@ const errorHandler_middleware_1 = require("./middlewares/errorHandler.middleware
 const student_routes_1 = __importDefault(require("./routes/student.routes"));
 const admin_routes_1 = __importDefault(require("./routes/admin.routes"));
 const superadmin_routes_1 = __importDefault(require("./routes/superadmin.routes"));
+const sync_job_1 = require("./jobs/sync.job");
 dotenv_1.default.config();
 // Swagger UI Integration
 // Load OpenAPI YAML specification
@@ -40,4 +41,6 @@ app.get('/health', (req, res) => {
 });
 // Error handler (must be last)
 app.use(errorHandler_middleware_1.errorHandler);
+// Initialize cron jobs for leaderboard optimization
+(0, sync_job_1.startSyncJob)();
 exports.default = app;

@@ -6,36 +6,110 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteAdminController = exports.updateAdminController = exports.getAllAdminsController = exports.createAdminController = exports.getAdminStats = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const admin_service_1 = require("../services/admin.service");
-const admin_service_2 = require("../services/admin.service");
 const getAdminStats = async (req, res) => {
     try {
-        // Get total counts
-        const [totalCities, totalBatches, totalStudents, totalAdmins] = await Promise.all([
-            prisma_1.default.city.count(),
-            prisma_1.default.batch.count(),
-            prisma_1.default.student.count(),
-            prisma_1.default.admin.count({
-                where: { role: 'TEACHER' }
-            })
-        ]);
-        // Get city-wise distribution
-        const cityWiseDistribution = await (0, admin_service_1.getCityWiseStats)();
+        const { batch_id } = req.body;
+        // Validate batch_id
+        if (!batch_id || isNaN(parseInt(batch_id))) {
+            return res.status(400).json({
+                success: false,
+                message: "Valid batch_id is required"
+            });
+        }
+        const batchId = parseInt(batch_id);
+        // Check if batch exists
+        const batch = await prisma_1.default.batch.findUnique({
+            where: { id: batchId },
+            include: {
+                city: {
+                    select: {
+                        city_name: true
+                    }
+                }
+            }
+        });
+        if (!batch) {
+            return res.status(404).json({
+                success: false,
+                message: "Batch not found"
+            });
+        }
+        // Get total classes for this batch
+        const totalClasses = await prisma_1.default.class.count({
+            where: { batch_id: batchId }
+        });
+        // Get total students for this batch
+        const totalStudents = await prisma_1.default.student.count({
+            where: { batch_id: batchId }
+        });
+        // Get all questions assigned to this batch's classes
+        const assignedQuestions = await prisma_1.default.questionVisibility.findMany({
+            where: {
+                class: {
+                    batch_id: batchId
+                }
+            },
+            include: {
+                question: {
+                    select: {
+                        level: true,
+                        platform: true,
+                        type: true
+                    }
+                }
+            }
+        });
+        const totalQuestions = assignedQuestions.length;
+        // Calculate questions by type
+        const questionsByType = {
+            homework: assignedQuestions.filter((qc) => qc.question.type === 'HOMEWORK').length,
+            classwork: assignedQuestions.filter((qc) => qc.question.type === 'CLASSWORK').length
+        };
+        // Calculate questions by level
+        const questionsByLevel = {
+            easy: assignedQuestions.filter((qc) => qc.question.level === 'EASY').length,
+            medium: assignedQuestions.filter((qc) => qc.question.level === 'MEDIUM').length,
+            hard: assignedQuestions.filter((qc) => qc.question.level === 'HARD').length
+        };
+        // Calculate questions by platform
+        const questionsByPlatform = {
+            leetcode: assignedQuestions.filter((qc) => qc.question.platform === 'LEETCODE').length,
+            gfg: assignedQuestions.filter((qc) => qc.question.platform === 'GFG').length,
+            other: assignedQuestions.filter((qc) => qc.question.platform === 'OTHER').length,
+            interviewbit: assignedQuestions.filter((qc) => qc.question.platform === 'INTERVIEWBIT').length
+        };
+        // Get total topics discussed for this batch
+        const totalTopicsDiscussed = await prisma_1.default.topic.count({
+            where: {
+                classes: {
+                    some: {
+                        batch_id: batchId
+                    }
+                }
+            }
+        });
         return res.status(200).json({
             success: true,
             data: {
-                totalCities,
-                totalBatches,
-                totalAdmins,
-                totalStudents,
-                cityWiseDistribution
+                batch_id: batchId,
+                batch_name: batch.batch_name,
+                city: batch.city.city_name,
+                year: batch.year,
+                total_classes: totalClasses,
+                total_questions: totalQuestions,
+                total_students: totalStudents,
+                questions_by_type: questionsByType,
+                questions_by_level: questionsByLevel,
+                questions_by_platform: questionsByPlatform,
+                total_topics_discussed: totalTopicsDiscussed
             }
         });
     }
     catch (error) {
-        console.error("Admin stats error:", error);
+        console.error("Batch stats error:", error);
         return res.status(500).json({
             success: false,
-            message: error instanceof Error ? error.message : "Failed to fetch admin statistics"
+            message: error instanceof Error ? error.message : "Failed to fetch batch statistics"
         });
     }
 };
@@ -50,7 +124,7 @@ const createAdminController = async (req, res) => {
                 message: "Missing required fields: name, email, password"
             });
         }
-        const newAdmin = await (0, admin_service_2.createAdminService)(adminData);
+        const newAdmin = await (0, admin_service_1.createAdminService)(adminData);
         return res.status(201).json({
             success: true,
             message: "Admin created successfully",
@@ -69,7 +143,7 @@ exports.createAdminController = createAdminController;
 const getAllAdminsController = async (req, res) => {
     try {
         const filters = req.query;
-        const admins = await (0, admin_service_2.getAllAdminsService)(filters);
+        const admins = await (0, admin_service_1.getAllAdminsService)(filters);
         return res.status(200).json({
             success: true,
             data: admins
@@ -94,7 +168,7 @@ const updateAdminController = async (req, res) => {
                 message: "Valid admin ID is required"
             });
         }
-        const updatedAdmin = await (0, admin_service_2.updateAdminService)(parseInt(id), updateData);
+        const updatedAdmin = await (0, admin_service_1.updateAdminService)(parseInt(id), updateData);
         return res.status(200).json({
             success: true,
             message: "Admin updated successfully",
@@ -120,7 +194,7 @@ const deleteAdminController = async (req, res) => {
                 message: "Valid admin ID is required"
             });
         }
-        const result = await (0, admin_service_2.deleteAdminService)(parseInt(id));
+        const result = await (0, admin_service_1.deleteAdminService)(parseInt(id));
         return res.status(200).json({
             success: true,
             message: result.message

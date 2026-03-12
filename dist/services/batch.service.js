@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteBatchService = exports.updateBatchService = exports.getAllBatchesService = exports.createBatchService = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
+const slug_1 = require("../utils/slug");
 const createBatchService = async ({ batch_name, year, city_id, }) => {
     if (!batch_name || !year || !city_id) {
         throw new Error("All fields are required");
@@ -34,6 +35,7 @@ const createBatchService = async ({ batch_name, year, city_id, }) => {
             batch_name,
             year,
             city_id,
+            slug: (0, slug_1.generateBatchSlug)(city.city_name, batch_name, year),
         },
     });
     return batch;

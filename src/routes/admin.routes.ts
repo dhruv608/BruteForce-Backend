@@ -87,7 +87,7 @@ router.post(
 router.get("/dashboard", getDashboardController);
 
 // Admin Statistics
-router.get("/stats", getAdminStats);
+router.post("/stats", getAdminStats);
 
 // Leaderboard
 router.get("/leaderboard", getAdminLeaderboard);

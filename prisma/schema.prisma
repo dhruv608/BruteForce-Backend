@@ -20,6 +20,7 @@ model Batch {
   id         Int       @id @default(autoincrement())
   batch_name String    @db.VarChar(50)
   year       Int
+  slug       String    @unique @db.VarChar(100)
   city_id    Int
   created_at DateTime @default(now())
 

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../config/prisma';
 import { hashPassword, comparePassword } from '../utils/password.util';
-import { generateAccessToken,generateRefreshToken } from '../utils/jwt.util';
+import { generateAccessToken, generateRefreshToken } from '../utils/jwt.util';
 import { OAuth2Client } from "google-auth-library";
 
 
@@ -11,21 +11,21 @@ const googleClient = new OAuth2Client(
 // Student Registration
 export const registerStudent = async (req: Request, res: Response) => {
   try {
-    const { 
-      name, 
-      email, 
-      username, 
-      password, 
-      enrollment_id, 
-      batch_id, 
-      leetcode_id, 
-      gfg_id 
+    const {
+      name,
+      email,
+      username,
+      password,
+      enrollment_id,
+      batch_id,
+      leetcode_id,
+      gfg_id
     } = req.body;
 
     // Validation
     if (!name || !email || !username || !password || !batch_id) {
-      return res.status(400).json({ 
-        error: 'Name, email, username, password, and batch_id are required' 
+      return res.status(400).json({
+        error: 'Name, email, username, password, and batch_id are required'
       });
     }
 
@@ -37,8 +37,8 @@ export const registerStudent = async (req: Request, res: Response) => {
     });
 
     if (existingStudent) {
-      return res.status(400).json({ 
-        error: 'Email, username, or enrollment_id already exists' 
+      return res.status(400).json({
+        error: 'Email, username, or enrollment_id already exists'
       });
     }
 
@@ -113,8 +113,8 @@ export const loginStudent = async (req: Request, res: Response) => {
     const { email, password, username } = req.body;
 
     if ((!email && !username) || !password) {
-      return res.status(400).json({ 
-        error: 'Either email or username with password are required' 
+      return res.status(400).json({
+        error: 'Either email or username with password are required'
       });
     }
 
@@ -196,28 +196,28 @@ export const loginStudent = async (req: Request, res: Response) => {
 // Admin/Teacher Registration
 export const registerAdmin = async (req: Request, res: Response) => {
   try {
-    const { name, email, username, password, role } = req.body;
+    const { name, email, password, role } = req.body;
 
-    if (!name || !email || !username || !password || !role) {
+    if (!name || !email || !password || !role) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
     // Check existing admin
     const existingAdmin = await prisma.admin.findFirst({
       where: {
-        OR: [{ email }, { username }],
+        email,
       },
     });
 
     if (existingAdmin) {
-      return res.status(400).json({ error: 'Email or username already exists' });
+      return res.status(400).json({ error: 'Email already exists' });
     }
 
     if (req.user?.role !== "SUPERADMIN") {
       return res.status(403).json({ error: "Only SuperAdmin can create admin" });
     }
 
-    if (role !== "TEACHER" && role !== "INTERN") {
+    if (role !== "TEACHER" && role !== "INTERN" && role !== "SUPERADMIN") {
       return res.status(400).json({ error: "Invalid role type" });
     }
     const password_hash = await hashPassword(password);
@@ -226,7 +226,6 @@ export const registerAdmin = async (req: Request, res: Response) => {
       data: {
         name,
         email,
-        username,
         password_hash,
         role,
       },
@@ -234,7 +233,6 @@ export const registerAdmin = async (req: Request, res: Response) => {
         id: true,
         name: true,
         email: true,
-        username: true,
         role: true,
         created_at: true,
       },
@@ -281,6 +279,20 @@ export const loginAdmin = async (req: Request, res: Response) => {
 
     const admin = await prisma.admin.findUnique({
       where: { email },
+      include: {
+        batch: {
+          select: {
+            id: true,
+            batch_name: true,
+            city: {
+              select: {
+                id: true,
+                city_name: true
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!admin || !admin.password_hash) {
@@ -298,6 +310,12 @@ export const loginAdmin = async (req: Request, res: Response) => {
       email: admin.email,
       role: admin.role,
       userType: 'admin',
+      ...(admin.batch && admin.batch.city && {
+        batchId: admin.batch.id,
+        batchName: admin.batch.batch_name,
+        cityId: admin.batch.city.id,
+        cityName: admin.batch.city.city_name,
+      }),
     });
 
     const refreshToken = generateRefreshToken({
@@ -318,7 +336,6 @@ export const loginAdmin = async (req: Request, res: Response) => {
         id: admin.id,
         name: admin.name,
         email: admin.email,
-        username: admin.username,
         role: admin.role,
       },
     });
@@ -385,7 +402,7 @@ export const googleLogin = async (req: Request, res: Response) => {
       idToken,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
-    
+
     const payload = ticket.getPayload();
 
     if (!payload?.email) {
@@ -467,7 +484,7 @@ export const logoutStudent = async (req: Request, res: Response) => {
   try {
     // Get student info from middleware
     const studentId = (req as any).student?.id;
-    
+
     if (studentId) {
       // Clear refresh token from database
       await prisma.student.update({
@@ -475,7 +492,7 @@ export const logoutStudent = async (req: Request, res: Response) => {
         data: { refresh_token: null }
       });
     }
-    
+
     res.json({
       message: "Student logout successful",
       // Refresh token cleared from database
@@ -491,7 +508,7 @@ export const logoutAdmin = async (req: Request, res: Response) => {
   try {
     // Get admin info from middleware
     const adminId = (req as any).admin?.id;
-    
+
     if (adminId) {
       // Clear refresh token from database
       await prisma.admin.update({
@@ -500,7 +517,7 @@ export const logoutAdmin = async (req: Request, res: Response) => {
       });
     }
     // by removing the token from storage.
-    
+
     res.json({
       message: "Admin logout successful",
       // Optionally, you could add token blacklisting here if needed

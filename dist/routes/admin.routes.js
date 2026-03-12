@@ -49,7 +49,6 @@ router.get("/admins", admin_controller_1.getAllAdminsController);
 // Global Topics
 router.get("/topics", topic_controller_1.getAllTopics);
 router.post("/topics", role_middleware_1.isTeacherOrAbove, topic_controller_1.createTopic);
-router.post("/topics/bulk", role_middleware_1.isTeacherOrAbove, topic_controller_1.createTopicsBulk);
 router.patch("/topics/:id", role_middleware_1.isTeacherOrAbove, topic_controller_1.updateTopic);
 router.delete("/topics/:id", role_middleware_1.isTeacherOrAbove, topic_controller_1.deleteTopic);
 //  WORKSPACE ROUTES (BATCH CONTEXT)
@@ -64,7 +63,7 @@ router.post("/questions/bulk-upload", role_middleware_1.isTeacherOrAbove, upload
 // Update
 router.get("/dashboard", dashboard_controller_1.getDashboardController);
 // Admin Statistics
-router.get("/stats", admin_controller_1.getAdminStats);
+router.post("/stats", admin_controller_1.getAdminStats);
 // Leaderboard
 router.get("/leaderboard", leaderboard_controller_1.getAdminLeaderboard);
 router.post("/leaderboard", auth_middleware_1.verifyToken, role_middleware_1.isAdmin, leaderboard_controller_1.getAdminLeaderboard); // Single admin leaderboard with pagination and search

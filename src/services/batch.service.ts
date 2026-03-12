@@ -54,6 +54,7 @@ export const createBatchService = async ({
       batch_name,
       year,
       city_id,
+      slug: generateBatchSlug(city.city_name, batch_name, year),
     },
   });
 

@@ -157,11 +157,6 @@ router.post(
 // Everything below requires valid batchSlug
 router.use("/:batchSlug", resolveBatch);
 
-/* ---------- Overview ---------- */
-
-
-/* ---------- Topics ---------- */
-
 router.get("/:batchSlug/topics", getTopicsForBatch);
 
 /* ---------- Classes (Topic Driven) ---------- */

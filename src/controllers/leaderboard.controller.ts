@@ -192,7 +192,7 @@ export const getAdminLeaderboard = async (req: Request, res: Response) => {
             year: year || new Date().getFullYear()
         };
         
-        // Step 4 — Prepare pagination
+        // Step 4 - Prepare pagination
         const pagination = {
             page: Number(page),
             limit: Number(limit)

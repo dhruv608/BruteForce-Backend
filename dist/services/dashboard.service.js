@@ -12,10 +12,7 @@ const getDashboardService = async (query) => {
         if (batchSlug) {
             const batch = await prisma_1.default.batch.findFirst({
                 where: {
-                    batch_name: batchSlug,
-                    city: {
-                        city_name: citySlug
-                    }
+                    slug: batchSlug
                 },
                 select: { id: true }
             });

@@ -172,23 +172,23 @@ exports.loginStudent = loginStudent;
 // Admin/Teacher Registration
 const registerAdmin = async (req, res) => {
     try {
-        const { name, email, username, password, role } = req.body;
-        if (!name || !email || !username || !password || !role) {
+        const { name, email, password, role } = req.body;
+        if (!name || !email || !password || !role) {
             return res.status(400).json({ error: 'All fields are required' });
         }
         // Check existing admin
         const existingAdmin = await prisma_1.default.admin.findFirst({
             where: {
-                OR: [{ email }, { username }],
+                email,
             },
         });
         if (existingAdmin) {
-            return res.status(400).json({ error: 'Email or username already exists' });
+            return res.status(400).json({ error: 'Email already exists' });
         }
         if (req.user?.role !== "SUPERADMIN") {
             return res.status(403).json({ error: "Only SuperAdmin can create admin" });
         }
-        if (role !== "TEACHER" && role !== "INTERN") {
+        if (role !== "TEACHER" && role !== "INTERN" && role !== "SUPERADMIN") {
             return res.status(400).json({ error: "Invalid role type" });
         }
         const password_hash = await (0, password_util_1.hashPassword)(password);
@@ -196,7 +196,6 @@ const registerAdmin = async (req, res) => {
             data: {
                 name,
                 email,
-                username,
                 password_hash,
                 role,
             },
@@ -204,7 +203,6 @@ const registerAdmin = async (req, res) => {
                 id: true,
                 name: true,
                 email: true,
-                username: true,
                 role: true,
                 created_at: true,
             },
@@ -245,6 +243,20 @@ const loginAdmin = async (req, res) => {
         }
         const admin = await prisma_1.default.admin.findUnique({
             where: { email },
+            include: {
+                batch: {
+                    select: {
+                        id: true,
+                        batch_name: true,
+                        city: {
+                            select: {
+                                id: true,
+                                city_name: true
+                            }
+                        }
+                    }
+                }
+            }
         });
         if (!admin || !admin.password_hash) {
             return res.status(401).json({ error: 'Invalid credentials' });
@@ -258,6 +270,12 @@ const loginAdmin = async (req, res) => {
             email: admin.email,
             role: admin.role,
             userType: 'admin',
+            ...(admin.batch && admin.batch.city && {
+                batchId: admin.batch.id,
+                batchName: admin.batch.batch_name,
+                cityId: admin.batch.city.id,
+                cityName: admin.batch.city.city_name,
+            }),
         });
         const refreshToken = (0, jwt_util_1.generateRefreshToken)({
             id: admin.id,
@@ -275,7 +293,6 @@ const loginAdmin = async (req, res) => {
                 id: admin.id,
                 name: admin.name,
                 email: admin.email,
-                username: admin.username,
                 role: admin.role,
             },
         });

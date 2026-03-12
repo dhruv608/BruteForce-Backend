@@ -21,6 +21,7 @@ router.post("/cities", city_controller_1.createCity);
 router.get("/cities", city_controller_1.getAllCities);
 router.delete("/cities/:id", city_controller_1.deleteCity);
 // ===== BATCH =====
+router.get("/batches", batch_controller_1.getAllBatches);
 router.post("/batches", batch_controller_1.createBatch);
 router.patch("/batches/:id", batch_controller_1.updateBatch);
 router.delete("/batches/:id", batch_controller_1.deleteBatch);

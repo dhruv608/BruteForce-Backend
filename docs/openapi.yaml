@@ -280,6 +280,27 @@ paths:
       description: Get all topics with batch-specific progress for authenticated student
       security:
         - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Search topics by name"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: "Page number for pagination"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: "Number of items per page"
       responses:
         '200':
           description: Topics retrieved successfully
@@ -960,6 +981,27 @@ paths:
       description: Get all available cities for admin management
       security:
         - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Search cities by city name"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: "Page number for pagination"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: "Number of items per page"
       responses:
         '200':
           description: Cities retrieved successfully
@@ -987,6 +1029,39 @@ paths:
       description: Get all batches for admin management
       security:
         - bearerAuth: []
+      parameters:
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Filter batches by city name"
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "Filter batches by year"
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Search batches by name"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: "Page number for pagination"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: "Number of items per page"
       responses:
         '200':
           description: Batches retrieved successfully
@@ -1121,6 +1196,27 @@ paths:
       description: Get all topics available for content management
       security:
         - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Search topics by name"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: "Page number for pagination"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: "Number of items per page"
       responses:
         '200':
           description: Topics retrieved successfully
@@ -1581,16 +1677,29 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   /api/admin/stats:
-    get:
+    post:
       tags:
         - Admin
-      summary: Get admin statistics
-      description: Get comprehensive admin statistics including total counts and city-wise distribution
+      summary: Get batch statistics
+      description: Get comprehensive batch statistics including total classes, questions, students, and detailed breakdowns by type, level, and platform
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - batch_id
+              properties:
+                batch_id:
+                  type: integer
+                  example: 1
+                  description: "Batch ID to get statistics for"
       responses:
         '200':
-          description: Admin statistics retrieved successfully
+          description: Batch statistics retrieved successfully
           content:
             application/json:
               schema:
@@ -1602,26 +1711,78 @@ paths:
                   data:
                     type: object
                     properties:
-                      totalCities:
+                      batch_id:
                         type: integer
-                        example: 10
-                      totalBatches:
+                        example: 1
+                      batch_name:
+                        type: string
+                        example: "SO-Batch-2025"
+                      batch_slug:
+                        type: string
+                        example: "bangalore-so-batch-2025"
+                        description: "Batch slug (format: cityname-batchname-year)"
+                      city:
+                        type: string
+                        example: "Bangalore"
+                      year:
                         type: integer
-                        example: 25
-                      totalAdmins:
+                        example: 2025
+                      total_classes:
                         type: integer
-                        example: 50
-                      totalStudents:
+                        example: 15
+                      total_questions:
                         type: integer
-                        example: 1000
-                      cityWiseDistribution:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/CityDistribution'
+                        example: 120
+                      total_students:
+                        type: integer
+                        example: 45
+                      questions_by_type:
+                        type: object
+                        properties:
+                          homework:
+                            type: integer
+                            example: 80
+                          classwork:
+                            type: integer
+                            example: 40
+                      questions_by_level:
+                        type: object
+                        properties:
+                          easy:
+                            type: integer
+                            example: 50
+                          medium:
+                            type: integer
+                            example: 50
+                          hard:
+                            type: integer
+                            example: 20
+                      questions_by_platform:
+                        type: object
+                        properties:
+                          leetcode:
+                            type: integer
+                            example: 60
+                          gfg:
+                            type: integer
+                            example: 40
+                          other:
+                            type: integer
+                            example: 15
+                          interviewbit:
+                            type: integer
+                            example: 5
+                      total_topics_discussed:
+                        type: integer
+                        example: 12
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -1724,7 +1885,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   /api/admin/leaderboard/recalculate:
-    get:
+    post:
       tags:
         - Admin
       summary: Recalculate leaderboard
@@ -1750,7 +1911,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   /api/admin/leaderboard/restore:
-    get:
+    post:
       tags:
         - Admin
       summary: Restore leaderboard data
@@ -2540,7 +2701,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   # Batch-specific Admin Routes
-  /api/admin/{batch:}/topics:
+  /api/admin/{batchSlug}/topics:
     get:
       tags:
         - Admin
@@ -2549,12 +2710,13 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: topic
+        - name: batchSlug
           in: path
           required: true
+          description: "Batch slug (format: cityname-batchname-year)"
           schema:
             type: string
-            example: "so-batch-2025"
+            example: "bangalore-so-batch-2025"
       responses:
         '200':
           description: Topics retrieved successfully
@@ -2576,7 +2738,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/admin/{batch:}/topics/{topicSlug}/classes:
+  /api/admin/{batchSlug}/topics/{topicSlug}/classes:
     get:
       tags:
         - Admin
@@ -2585,17 +2747,20 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: topic
+        - name: batchSlug
           in: path
           required: true
+          description: "Batch slug (format: cityname-batchname-year)"
           schema:
             type: string
-            example: "so-batch-2025"
-        - name: topic
+            example: "bangalore-so-batch-2025"
+        - name: topicSlug
           in: path
           required: true
+          description: "Topic slug"
           schema:
             type: string
+            example: "arrays-and-strings"
       responses:
         '200':
           description: Classes retrieved successfully
@@ -2821,7 +2986,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/admin/{batch:}/topics/{topicSlug}/classes/{classSlug}/questions:
+  /api/admin/{batchSlug}/topics/{topicSlug}/classes/{classSlug}/questions:
     post:
       tags:
         - Admin
@@ -2930,7 +3095,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /api/admin/{batch:}/topics/{topicSlug}/classes/{classSlug}/questions/{questionId}:
+  /api/admin/{batchSlug}/topics/{topicSlug}/classes/{classSlug}/questions/{questionId}:
     delete:
       tags:
         - Admin
@@ -2994,7 +3159,21 @@ paths:
           required: false
           schema:
             type: string
-            description: "Search cities by name"
+          description: "Search cities by name"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: "Page number for pagination"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: "Number of items per page"
       responses:
         '200':
           description: Cities retrieved successfully
@@ -3172,13 +3351,33 @@ paths:
           required: false
           schema:
             type: string
-            description: "Filter batches by city name"
+          description: "Filter batches by city name"
         - name: year
           in: query
           required: false
           schema:
             type: integer
-            description: "Filter batches by year"
+          description: "Filter batches by year"
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Search batches by name"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: "Page number for pagination"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: "Number of items per page"
       responses:
         '200':
           description: Batches retrieved successfully
@@ -3520,7 +3719,7 @@ paths:
       tags:
         - SuperAdmin
       summary: Update admin (SuperAdmin)
-      description: Update existing admin information. Only role and batch_id can be updated (major changes only). Name and email cannot be modified. City ID is automatically fetched from batch if batch_id is changed.
+      description: Update existing admin information. Only role and batch_id can be updated (major changes only). Name, email, and username cannot be modified. City ID is automatically fetched from batch if batch_id is changed.
       security:
         - bearerAuth: []
       parameters:
@@ -3545,7 +3744,7 @@ paths:
                   type: integer
                   example: 2
                   description: "New batch assignment (city_id will be auto-updated)"
-              description: "Only role and batch_id can be updated. Name and email are read-only."
+              description: "Only role and batch_id can be updated. Name, email, and username are read-only."
       responses:
         '200':
           description: Admin updated successfully
@@ -4040,9 +4239,19 @@ components:
         batch_id:
           type: integer
           example: 1
+          description: "Default batch ID for the admin"
+        batch_name:
+          type: string
+          example: "SO-Batch-2025"
+          description: "Default batch name for the admin"
         city_id:
           type: integer
           example: 1
+          description: "Default city ID for the admin"
+        city_name:
+          type: string
+          example: "Bangalore"
+          description: "Default city name for the admin"
         created_at:
           type: string
           format: date-time
@@ -4087,7 +4296,8 @@ components:
           example: 2025
         slug:
           type: string
-          example: "2025-batch-a"
+          example: "bangalore-so-batch-2025"
+          description: "Batch slug (format: cityname-batchname-year)"
         city_id:
           type: integer
           example: 1

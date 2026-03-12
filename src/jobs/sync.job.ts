@@ -19,8 +19,8 @@ export function startSyncJob() {
   });
 
   // 🚀 Leaderboard cache sync every 4 hours
-  // cron.schedule("0 */4 * * *", async () => {
-  cron.schedule("* * * * *", async () => {
+  cron.schedule("0 */4 * * *", async () => {
+  // cron.schedule("* * * * *", async () => {
     console.log("⏰ Running scheduled leaderboard sync...");
 
     try {

@@ -81,7 +81,7 @@ export const updateCityService = async ({
   if (duplicateName && duplicateName.id !== existingCity.id) {
     throw new Error("City name already in use");
   }
-
+  
   const baseSlug = generateSlug(city_name);
   let newSlug = baseSlug;
   let counter = 1;

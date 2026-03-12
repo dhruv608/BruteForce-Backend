@@ -31,7 +31,7 @@ router.use(verifyToken, isSuperAdmin);
 
 router.post("/cities", createCity);
 router.get("/cities", getAllCities);
-router.patch("/cities/:id", updateCity);
+// router.patch("/cities/:id", updateCity);
 router.delete("/cities/:id", deleteCity);
 
 
@@ -43,15 +43,13 @@ router.delete("/batches/:id", deleteBatch);
 
 
 
-// ===== ADMIN =====
-
-
-
 // ===== ADMIN MANAGEMENT =====
 router.post("/admins", createAdminController);                    // Create admin
 router.get("/admins", getAllAdminsController);             // Get all admins with filters
 router.patch("/admins/:id", updateAdminController);           // Update admin
 router.delete("/admins/:id", deleteAdminController);         // Delete admin
+
+
 
 // ===== SYSTEM STATS =====
 router.get("/stats", async (req, res) => {

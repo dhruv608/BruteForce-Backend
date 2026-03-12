@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getLeaderboardService, recalculateLeaderboardService, getLeaderboardWithPagination } from "../services/leaderboard.service";
+import { getLeaderboardService, recalculateLeaderboardService, getLeaderboardWithPagination, getCachedLeaderboard } from "../services/leaderboard.service";
 import prisma from "../config/prisma";
 
 export const getLeaderboardPost = async (req: Request, res: Response) => {
@@ -176,7 +176,7 @@ export const recalculateLeaderboard = async (req: Request, res: Response) => {
     }
 };
 
-// Admin Leaderboard API with pagination and search
+// Admin Leaderboard API with pagination and search - OPTIMIZED
 export const getAdminLeaderboard = async (req: Request, res: Response) => {
     try {
         // Step 1 — Read filters from request body
@@ -198,8 +198,8 @@ export const getAdminLeaderboard = async (req: Request, res: Response) => {
             limit: Number(limit)
         };
         
-        // Step 5 - Fetch leaderboard using shared service
-        const result = await getLeaderboardWithPagination(filters, pagination, search);
+        // Step 5 — 🚀 Use optimized cached service
+        const result = await getCachedLeaderboard(filters, pagination, search);
         
         return res.status(200).json({
             success: true,
@@ -207,7 +207,9 @@ export const getAdminLeaderboard = async (req: Request, res: Response) => {
             limit: result.pagination.limit,
             totalStudents: result.pagination.totalStudents,
             totalPages: result.pagination.totalPages,
-            leaderboard: result.leaderboard
+            leaderboard: result.leaderboard,
+            cached: (result as any).cached || false,
+            lastUpdated: (result as any).lastUpdated || null
         });
 
     } catch (error) {

@@ -59,7 +59,6 @@ model Student {
   batch               Batch?            @relation(fields: [batch_id], references: [id])
   city                City?             @relation(fields: [city_id], references: [id])
   progress            StudentProgress[]
-
   @@index([city_id])
   @@index([batch_id])
 }
@@ -161,15 +160,35 @@ model StudentProgress {
   @@index([question_id])
 }
 
+// 🚀 Optimized leaderboard table with pre-calculated rankings
 model Leaderboard {
-  id           Int      @id @default(autoincrement())
-  student_id   Int      @unique
-  max_streak   Int      @default(0)
-  updated_at   DateTime @updatedAt
-  easy_count   Int      @default(0)
-  hard_count   Int      @default(0)
-  medium_count Int      @default(0)
-  student      Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  id                Int      @id @default(autoincrement())
+  student_id        Int      @unique
+  
+  // Base stats (from progress calculation)
+  max_streak        Int      @default(0)
+  easy_count        Int      @default(0)
+  medium_count      Int      @default(0)
+  hard_count        Int      @default(0)
+  
+  // Cached ranking data (updated by cron job)
+  global_rank       Int?
+  city_rank         Int?
+  score             Decimal? @db.Decimal(10, 2)
+  hard_completion   Decimal? @db.Decimal(5, 2)
+  medium_completion Decimal? @db.Decimal(5, 2)
+  easy_completion   Decimal? @db.Decimal(5, 2)
+  total_solved      Int      @default(0)
+  
+  // Filter metadata
+  filters_hash      String?  @db.VarChar(64)
+  last_calculated   DateTime @default(now()) @updatedAt
+  
+  student           Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  
+  @@index([global_rank])
+  @@index([score])
+  @@index([last_calculated])
 }
 
 enum Platform {

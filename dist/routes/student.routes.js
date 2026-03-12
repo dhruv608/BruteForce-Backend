@@ -23,11 +23,11 @@ router.get("/addedQuestions", questionVisibility_controller_1.getAllQuestionsWit
 router.post("/leaderboard", leaderboard_controller_1.getStudentLeaderboard); // Single student leaderboard with top 10 and personal rank
 // ===== PROFILE ROUTES =====
 router.get("/profile", studentProfile_controller_1.getStudentProfile); // Complete student profile with all sections
-router.get("/test/basic", studentProfile_controller_1.testStudentBasicInfo);
-router.get("/test/stats", studentProfile_controller_1.testCodingStats);
-router.get("/test/streak", studentProfile_controller_1.testStreak);
-router.get("/test/leaderboard", studentProfile_controller_1.testLeaderboard);
-router.get("/test/heatmap", studentProfile_controller_1.testHeatmap);
-router.get("/test/topic", studentProfile_controller_1.testTopicProgress);
-router.get("/test/activity", studentProfile_controller_1.testRecentActivity);
+// router.get("/test/basic", testStudentBasicInfo);
+// router.get("/test/stats", testCodingStats);
+// router.get("/test/streak", testStreak);
+// router.get("/test/leaderboard", testLeaderboard);
+// router.get("/test/heatmap", testHeatmap);
+// router.get("/test/topic", testTopicProgress);
+// router.get("/test/activity", testRecentActivity);
 exports.default = router;

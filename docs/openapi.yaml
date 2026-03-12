@@ -1724,7 +1724,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   /api/admin/leaderboard/recalculate:
-    post:
+    get:
       tags:
         - Admin
       summary: Recalculate leaderboard
@@ -1750,7 +1750,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   /api/admin/leaderboard/restore:
-    post:
+    get:
       tags:
         - Admin
       summary: Restore leaderboard data
@@ -3520,7 +3520,7 @@ paths:
       tags:
         - SuperAdmin
       summary: Update admin (SuperAdmin)
-      description: Update existing admin information. Only role and batch_id can be updated (major changes only). Name, email, and username cannot be modified. City ID is automatically fetched from batch if batch_id is changed.
+      description: Update existing admin information. Only role and batch_id can be updated (major changes only). Name and email cannot be modified. City ID is automatically fetched from batch if batch_id is changed.
       security:
         - bearerAuth: []
       parameters:
@@ -3545,7 +3545,7 @@ paths:
                   type: integer
                   example: 2
                   description: "New batch assignment (city_id will be auto-updated)"
-              description: "Only role and batch_id can be updated. Name, email, and username are read-only."
+              description: "Only role and batch_id can be updated. Name and email are read-only."
       responses:
         '200':
           description: Admin updated successfully

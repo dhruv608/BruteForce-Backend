@@ -20,7 +20,10 @@ const openApiSpec = YAML.load(path.join(__dirname, '../docs/openapi.yaml'));
 const app = express();
 
 // Middlewares
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5000', 'http://127.0.0.1:5501', 'http://localhost:5501'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -36,6 +39,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: 'DSA Tracker API Documentation'
 }));
+
+// Serve static files for CSV UI
+app.use('/csv-ui', express.static(path.join(__dirname, 'csv_ui')));
 
 // Health check
 app.get('/health', (req, res) => {

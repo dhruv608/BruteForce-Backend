@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Report Download - DSA Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>CSV Report Download</h1>
+            <p>Download batch reports as CSV files</p>
+        </header>
+
+        <main class="main-content">
+            <div class="download-section">
+                <h2>Download Batch Report</h2>
+                
+                <div class="batch-helper">
+                    <button id="getBatchesBtn" class="helper-btn">Get Available Batches</button>
+                    <div id="batchesList" class="batches-list" style="display: none;"></div>
+                </div>
+                
+                <form id="downloadForm" class="download-form">
+                    <div class="form-group">
+                        <label for="authToken">Auth Token:</label>
+                        <input type="text" id="authToken" name="authToken" placeholder="Enter your authentication token" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="batchId">Batch ID:</label>
+                        <input type="text" id="batchId" name="batchId" placeholder="Enter batch ID" required>
+                    </div>
+                    
+                    <button type="submit" class="download-btn">
+                        <span class="btn-text">Download CSV</span>
+                        <span class="loading-spinner" style="display: none;">Downloading...</span>
+                    </button>
+                </form>
+                
+                <div id="message" class="message"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const downloadForm = document.getElementById('downloadForm');
+        const messageDiv = document.getElementById('message');
+        const downloadBtn = document.querySelector('.download-btn');
+        const btnText = document.querySelector('.btn-text');
+        const loadingSpinner = document.querySelector('.loading-spinner');
+        const getBatchesBtn = document.getElementById('getBatchesBtn');
+        const batchesList = document.getElementById('batchesList');
+
+        // Get available batches
+        getBatchesBtn.addEventListener('click', async () => {
+            const authToken = document.getElementById('authToken').value;
+            
+            if (!authToken) {
+                showMessage('Please enter auth token first', 'error');
+                return;
+            }
+            
+            getBatchesBtn.disabled = true;
+            getBatchesBtn.textContent = 'Loading...';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/batches', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const batches = await response.json();
+                    displayBatches(batches);
+                } else {
+                    const errorData = await response.json();
+                    showMessage(`Failed to get batches: ${errorData.error || errorData.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Get batches error:', error);
+                showMessage('Network error. Please try again.', 'error');
+            } finally {
+                getBatchesBtn.disabled = false;
+                getBatchesBtn.textContent = 'Get Available Batches';
+            }
+        });
+        
+        function displayBatches(batches) {
+            if (!batches || batches.length === 0) {
+                batchesList.innerHTML = '<p>No batches found</p>';
+            } else {
+                const batchesHtml = batches.map(batch => `
+                    <div class="batch-item" onclick="selectBatch(${batch.id}, '${batch.batch_name}')">
+                        <strong>ID: ${batch.id}</strong> - ${batch.batch_name} (${batch.year})
+                    </div>
+                `).join('');
+                batchesList.innerHTML = `<h4>Available Batches:</h4>${batchesHtml}`;
+            }
+            batchesList.style.display = 'block';
+        }
+        
+        function selectBatch(batchId, batchName) {
+            document.getElementById('batchId').value = batchId;
+            showMessage(`Selected batch: ${batchName} (ID: ${batchId})`, 'success');
+        }
+
+        downloadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const authToken = document.getElementById('authToken').value;
+            const batchId = document.getElementById('batchId').value;
+            
+            if (!authToken || !batchId) {
+                showMessage('Please fill in all fields', 'error');
+                return;
+            }
+            
+            // Show loading state
+            btnText.style.display = 'none';
+            loadingSpinner.style.display = 'inline-block';
+            downloadBtn.disabled = true;
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/student/reportdownload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        batch_id: batchId
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (response.ok) {
+                    // Parse JSON response
+                    const responseData = await response.json();
+                    console.log('Response data:', responseData);
+                    
+                    if (responseData.success && responseData.filename && responseData.csvContent) {
+                        // Create blob from CSV content
+                        const blob = new Blob([responseData.csvContent], { type: 'text/csv' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = responseData.filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        
+                        showMessage(`Successfully downloaded ${responseData.filename}`, 'success');
+                    } else {
+                        showMessage('Invalid response format', 'error');
+                    }
+                } else {
+                    const contentType = response.headers.get('content-type');
+                    let errorMessage = `Download failed (Status: ${response.status})`;
+                    
+                    if (contentType && contentType.includes('application/json')) {
+                        try {
+                            const errorData = await response.json();
+                            errorMessage = errorData.message || errorData.error || errorMessage;
+                        } catch (e) {
+                            console.error('Failed to parse error JSON:', e);
+                        }
+                    } else {
+                        const errorText = await response.text();
+                        console.error('Error response:', errorText);
+                        errorMessage += ` - ${errorText.substring(0, 100)}`;
+                    }
+                    
+                    showMessage(errorMessage, 'error');
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                showMessage('Network error. Please try again.', 'error');
+            } finally {
+                // Reset loading state
+                btnText.style.display = 'inline-block';
+                loadingSpinner.style.display = 'none';
+                downloadBtn.disabled = false;
+            }
+        });
+        
+        function showMessage(text, type) {
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    messageDiv.textContent = '';
+                    messageDiv.className = 'message';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>

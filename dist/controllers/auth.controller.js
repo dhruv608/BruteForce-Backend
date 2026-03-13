@@ -3,11 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logoutAdmin = exports.logoutStudent = exports.googleLogin = exports.refreshToken = exports.loginAdmin = exports.registerAdmin = exports.loginStudent = exports.registerStudent = void 0;
+exports.resetPassword = exports.forgotPassword = exports.logoutAdmin = exports.logoutStudent = exports.googleLogin = exports.refreshToken = exports.loginAdmin = exports.registerAdmin = exports.loginStudent = exports.registerStudent = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const password_util_1 = require("../utils/password.util");
 const jwt_util_1 = require("../utils/jwt.util");
 const google_auth_library_1 = require("google-auth-library");
+const otp_util_1 = require("../utils/otp.util");
+const email_util_1 = require("../utils/email.util");
+const emailValidation_util_1 = require("../utils/emailValidation.util");
 const googleClient = new google_auth_library_1.OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // Student Registration
 const registerStudent = async (req, res) => {
@@ -17,6 +20,13 @@ const registerStudent = async (req, res) => {
         if (!name || !email || !username || !password || !batch_id) {
             return res.status(400).json({
                 error: 'Name, email, username, password, and batch_id are required'
+            });
+        }
+        // Validate email domain
+        const emailValidation = (0, emailValidation_util_1.validateEmail)(email);
+        if (!emailValidation.isValid) {
+            return res.status(400).json({
+                error: emailValidation.error
             });
         }
         // Check existing user
@@ -99,6 +109,15 @@ const loginStudent = async (req, res) => {
             return res.status(400).json({
                 error: 'Either email or username with password are required'
             });
+        }
+        // Validate email domain if email is provided
+        if (email) {
+            const emailValidation = (0, emailValidation_util_1.validateEmail)(email);
+            if (!emailValidation.isValid) {
+                return res.status(400).json({
+                    error: emailValidation.error
+                });
+            }
         }
         // Find student by email or username
         const student = await prisma_1.default.student.findFirst({
@@ -304,14 +323,13 @@ const loginAdmin = async (req, res) => {
 };
 exports.loginAdmin = loginAdmin;
 // Adding  Referesh Token API
-const jwt_util_2 = require("../utils/jwt.util");
 const refreshToken = async (req, res) => {
     try {
         const { refreshToken } = req.body;
         if (!refreshToken) {
             return res.status(400).json({ error: 'Refresh token required' });
         }
-        const decoded = (0, jwt_util_2.verifyRefreshToken)(refreshToken);
+        const decoded = (0, jwt_util_1.verifyRefreshToken)(refreshToken);
         let user;
         if (decoded.userType === 'admin') {
             user = await prisma_1.default.admin.findUnique({
@@ -356,6 +374,13 @@ const googleLogin = async (req, res) => {
         }
         const email = payload.email;
         const googleId = payload.sub;
+        // Validate email domain
+        const emailValidation = (0, emailValidation_util_1.validateEmail)(email);
+        if (!emailValidation.isValid) {
+            return res.status(400).json({
+                error: emailValidation.error
+            });
+        }
         // Check if student exists
         const student = await prisma_1.default.student.findUnique({
             where: { email },
@@ -465,3 +490,122 @@ const logoutAdmin = async (req, res) => {
     }
 };
 exports.logoutAdmin = logoutAdmin;
+// Forgot Password - Send OTP
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+        // Validate email domain
+        const emailValidation = (0, emailValidation_util_1.validateEmail)(email);
+        if (!emailValidation.isValid) {
+            return res.status(400).json({
+                error: emailValidation.error
+            });
+        }
+        // Check if user exists (student or admin)
+        let user = null;
+        user = await prisma_1.default.student.findUnique({ where: { email } });
+        if (!user) {
+            user = await prisma_1.default.admin.findUnique({ where: { email } });
+        }
+        if (!user) {
+            console.log(`User not found for email: ${email}`);
+            return res.json({
+                message: 'If an account with this email exists, an OTP has been sent'
+            });
+        }
+        // Generate and save OTP
+        const otp = (0, otp_util_1.generateOTP)();
+        console.log(`Generated OTP for ${email}: ${otp}`);
+        await (0, otp_util_1.saveOTP)(email, otp);
+        console.log('OTP saved to database');
+        // Send OTP email
+        console.log('Attempting to send OTP email...');
+        console.log('Email config:', {
+            EMAIL_USER: process.env.EMAIL_USER,
+            EMAIL_PASS_SET: !!process.env.EMAIL_PASS,
+            EMAIL_SERVICE: process.env.EMAIL_SERVICE || 'gmail'
+        });
+        await (0, email_util_1.sendOTPEmail)(email, otp);
+        console.log('OTP email sent successfully!');
+        res.json({
+            message: 'OTP sent to your email address',
+            otp: otp // Remove this in production!
+        });
+    }
+    catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({ error: 'Failed to send OTP' });
+    }
+};
+exports.forgotPassword = forgotPassword;
+// Reset Password - Verify OTP and reset password
+const resetPassword = async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({
+                error: 'Email, OTP, and new password are required'
+            });
+        }
+        // Validate email domain
+        const emailValidation = (0, emailValidation_util_1.validateEmail)(email);
+        if (!emailValidation.isValid) {
+            return res.status(400).json({
+                error: emailValidation.error
+            });
+        }
+        // Validate password strength
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                error: 'Password must be at least 6 characters long'
+            });
+        }
+        // Verify OTP
+        const isValidOTP = await (0, otp_util_1.validateOTP)(email, otp);
+        if (!isValidOTP) {
+            return res.status(400).json({ error: 'Invalid or expired OTP' });
+        }
+        // Find user and update password
+        let user = null;
+        user = await prisma_1.default.student.findUnique({ where: { email } });
+        let userType = '';
+        if (user) {
+            userType = 'student';
+        }
+        else {
+            user = await prisma_1.default.admin.findUnique({ where: { email } });
+            if (user) {
+                userType = 'admin';
+            }
+        }
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        // Hash new password
+        const password_hash = await (0, password_util_1.hashPassword)(newPassword);
+        // Update password based on user type
+        if (userType === 'student') {
+            await prisma_1.default.student.update({
+                where: { email },
+                data: { password_hash }
+            });
+        }
+        else {
+            await prisma_1.default.admin.update({
+                where: { email },
+                data: { password_hash }
+            });
+        }
+        res.json({
+            message: 'Password reset successful. You can now login with your new password.'
+        });
+    }
+    catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({ error: 'Failed to reset password' });
+    }
+};
+exports.resetPassword = resetPassword;

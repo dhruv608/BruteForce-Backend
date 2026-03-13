@@ -111,8 +111,10 @@ paths:
                 email:
                   type: string
                   format: email
+                  pattern: "^[^@]+@pwioi\\.com$"
                   maxLength: 150
-                  example: "john.doe@example.com"
+                  description: Must be a @pwioi.com email address
+                  example: "john.doe@pwioi.com"
                 username:
                   type: string
                   minLength: 1
@@ -173,7 +175,9 @@ paths:
                 email:
                   type: string
                   format: email
-                  example: "john.doe@example.com"
+                  pattern: "^[^@]+@pwioi\\.com$"
+                  description: Must be a @pwioi.com email address
+                  example: "john.doe@pwioi.com"
                 username:
                   type: string
                   example: "johndoe"
@@ -247,7 +251,9 @@ paths:
                 email:
                   type: string
                   format: email
-                  example: "admin@example.com"
+                  pattern: "^[^@]+@pwioi\\.com$"
+                  description: Must be a @pwioi.com email address
+                  example: "admin@pwioi.com"
                 password:
                   type: string
                   example: "adminpassword"
@@ -296,6 +302,229 @@ paths:
                   message:
                     type: string
                     example: "Admin logout successful"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/forgot-password:
+    post:
+      tags:
+        - Authentication
+      summary: Forgot password - Send OTP
+      description: Send a 6-digit OTP to the user's email for password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  pattern: "^[^@]+@pwioi\\.com$"
+                  description: Must be a @pwioi.com email address
+                  example: "student@pwioi.com"
+      responses:
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "OTP sent to your email address"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset password with OTP
+      description: Reset password using the OTP sent to email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - otp
+                - newPassword
+              properties:
+                email:
+                  type: string
+                  format: email
+                  pattern: "^[^@]+@pwioi\\.com$"
+                  description: Must be a @pwioi.com email address
+                  example: "student@pwioi.com"
+                otp:
+                  type: string
+                  pattern: "^[0-9]{6}$"
+                  description: 6-digit OTP received via email
+                  example: "123456"
+                newPassword:
+                  type: string
+                  minLength: 6
+                  description: New password (minimum 6 characters)
+                  example: "newpassword123"
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password reset successful. You can now login with your new password."
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "User not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/refresh-token:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Generate a new access token using a valid refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  description: Valid refresh token
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Access token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                    description: New JWT access token (valid for 15 minutes)
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '400':
+          description: Refresh token required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Refresh token required"
+        '403':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid refresh token"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/auth/google-login:
+    post:
+      tags:
+        - Authentication
+      summary: Google OAuth login
+      description: Authenticate using Google OAuth token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - idToken
+              properties:
+                idToken:
+                  type: string
+                  description: Google OAuth ID token
+                  example: "eyJhbGciOiJSUzI1NiIsImtpZCI6Ij..."
+      responses:
+        '200':
+          description: Google login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Google login successful"
+                  accessToken:
+                    type: string
+                    description: JWT access token (valid for 15 minutes)
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  refreshToken:
+                    type: string
+                    description: JWT refresh token (valid for 7 days)
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
+                    $ref: '#/components/schemas/StudentAuth'
+        '400':
+          description: Invalid Google token or email domain
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Only @pwioi.com email addresses are allowed"
+        '403':
+          description: Student not registered by admin
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Student not registered by admin"
+        '401':
+          description: Invalid Google token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid Google token"
         '500':
           $ref: '#/components/responses/InternalServerError'
 

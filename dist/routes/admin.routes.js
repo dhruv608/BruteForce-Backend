@@ -11,8 +11,8 @@ const topic_controller_1 = require("../controllers/topic.controller");
 const question_controller_1 = require("../controllers/question.controller");
 const questionBulk_controller_1 = require("../controllers/questionBulk.controller");
 const upload_middleware_1 = require("../middlewares/upload.middleware");
-const dashboard_controller_1 = require("../controllers/dashboard.controller");
 const admin_controller_1 = require("../controllers/admin.controller");
+const csv_controller_1 = require("../controllers/csv.controller");
 const leaderboard_controller_1 = require("../controllers/leaderboard.controller");
 const questionVisibility_controller_1 = require("../controllers/questionVisibility.controller");
 const class_controller_1 = require("../controllers/class.controller");
@@ -37,13 +37,7 @@ router.use(admin_middleware_1.extractAdminInfo); // Add admin info extraction
 // Cities
 router.get("/cities", city_controller_1.getAllCities);
 // Batches
-router.post("/batches", batch_controller_1.createBatch);
 router.get("/batches", batch_controller_1.getAllBatches);
-// Admin Management
-router.post("/admins", admin_controller_1.createAdminController);
-router.get("/admins", admin_controller_1.getAllAdminsController);
-// Force Sync Student
-router.post("/force-sync-student", admin_controller_1.forceSyncStudent);
 // Global Topics
 router.get("/topics", topic_controller_1.getAllTopics);
 router.post("/topics", role_middleware_1.isTeacherOrAbove, topic_controller_1.createTopic);
@@ -56,19 +50,54 @@ router.get("/questions", question_controller_1.getAllQuestions);
 router.patch("/questions/:id", role_middleware_1.isTeacherOrAbove, question_controller_1.updateQuestion);
 router.delete("/questions/:id", role_middleware_1.isTeacherOrAbove, question_controller_1.deleteQuestion);
 router.post("/questions/bulk-upload", role_middleware_1.isTeacherOrAbove, upload_middleware_1.upload.single("file"), questionBulk_controller_1.bulkUploadQuestions);
-/* ---------- Students ---------- */
-// Student CRUD
-// Update
-router.get("/dashboard", dashboard_controller_1.getDashboardController);
 // Admin Statistics
 router.post("/stats", admin_controller_1.getAdminStats);
+// Download Batch Report
+router.post("/student/reportdownload", csv_controller_1.downloadBatchReportController);
 router.post("/leaderboard", auth_middleware_1.verifyToken, role_middleware_1.isAdmin, leaderboard_controller_1.getAdminLeaderboard); // Single admin leaderboard with pagination and search
+// router.post("/leaderboard/recalculate", recalculateLeaderboard);
+// 🚨 Emergency: Restore leaderboard data after migration
+// router.post("/leaderboard/restore", async (req, res) => {
+//   try {
+//     console.log("🔄 Restoring leaderboard data...");
+//     // Get all students
+//     const students = await prisma.student.findMany({ select: { id: true } });
+//     // Create leaderboard entries for each student
+//     let created = 0;
+//     for (const student of students) {
+//       const existing = await (prisma as any).leaderboard.findUnique({
+//         where: { student_id: student.id }
+//       });
+//       if (!existing) {
+//         await (prisma as any).leaderboard.create({
+//           data: {
+//             student_id: student.id,
+//             max_streak: 0,
+//             easy_count: 0,
+//             medium_count: 0,
+//             hard_count: 0,
+//             total_solved: 0
+//           }
+//         });
+//         created++;
+//       }
+//     }
+//     res.json({ 
+//       success: true, 
+//       message: `Restored ${created} leaderboard entries`,
+//       totalStudents: students.length 
+//     });
+//   } catch (error) {
+//     console.error("Restore failed:", error);
+//     res.status(500).json({ success: false, error: (error as any).message });
+//   }
+// });
 router.get("/questions", question_controller_1.getAssignedQuestionsController);
 router.patch("/students/:id", role_middleware_1.isTeacherOrAbove, role_middleware_1.isAdmin, student_controller_1.updateStudentDetails);
 // Delete (Hard Delete)
 router.delete("/students/:id", role_middleware_1.isTeacherOrAbove, role_middleware_1.isAdmin, student_controller_1.deleteStudentDetails);
 router.get("/students", student_controller_1.getAllStudentsController);
-router.get("/students/:username", student_controller_1.getStudentReportController);
+// router.get("/students/:username", getStudentReportController);
 router.post("/students", role_middleware_1.isTeacherOrAbove, student_controller_1.createStudentController);
 router.post("/students/progress", role_middleware_1.isTeacherOrAbove, role_middleware_1.isAdmin, student_controller_1.addStudentProgressController);
 router.get("/test/leetcode/:username", test_controller_1.testLeetcode);
@@ -88,7 +117,8 @@ router.get("/:batchSlug/topics/:topicSlug/classes/:classSlug", class_controller_
 router.patch("/:batchSlug/topics/:topicSlug/classes/:classSlug", role_middleware_1.isTeacherOrAbove, class_controller_1.updateClass);
 router.delete("/:batchSlug/topics/:topicSlug/classes/:classSlug", role_middleware_1.isTeacherOrAbove, class_controller_1.deleteClass);
 // Question assignment routes (topic context required)
-router.post("j", role_middleware_1.isTeacherOrAbove, questionVisibility_controller_1.assignQuestionsToClass);
+router.post("/:batchSlug/topics/:topicSlug/classes/:classSlug/questions", role_middleware_1.isTeacherOrAbove, questionVisibility_controller_1.assignQuestionsToClass);
 router.get("/:batchSlug/topics/:topicSlug/classes/:classSlug/questions", questionVisibility_controller_1.getAssignedQuestionsOfClass);
+0;
 router.delete("/:batchSlug/topics/:topicSlug/classes/:classSlug/questions/:questionId", role_middleware_1.isTeacherOrAbove, questionVisibility_controller_1.removeQuestionFromClass);
 exports.default = router;

@@ -21,7 +21,7 @@ exports.verifyRefreshToken = exports.verifyAccessToken = exports.generateRefresh
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const generateAccessToken = (payload) => {
     return jsonwebtoken_1.default.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "7d",
+        expiresIn: "15m",
     });
 };
 exports.generateAccessToken = generateAccessToken;

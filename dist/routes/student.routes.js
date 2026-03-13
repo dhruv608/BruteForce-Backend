@@ -10,6 +10,8 @@ const questionVisibility_controller_1 = require("../controllers/questionVisibili
 const leaderboard_controller_1 = require("../controllers/leaderboard.controller");
 const studentProfile_controller_1 = require("../controllers/studentProfile.controller");
 const router = (0, express_1.Router)();
+// Public route - no authentication required
+router.get("/profile/:username", studentProfile_controller_1.getPublicStudentProfile); // Public student profile by username
 // All routes require authentication + STUDENT role + student info extraction
 router.use(auth_middleware_1.verifyToken, role_middleware_1.isStudent, student_middleware_1.extractStudentInfo);
 // ===== TOPICS ROUTES =====
@@ -21,7 +23,12 @@ router.get("/topics/:topicSlug/classes/:classSlug", class_controller_1.getClassD
 router.get("/addedQuestions", questionVisibility_controller_1.getAllQuestionsWithFilters); // All questions with filters and solved status
 // ===== LEADERBOARD ROUTES =====
 router.post("/leaderboard", leaderboard_controller_1.getStudentLeaderboard); // Single student leaderboard with top 10 and personal rank
-// ===== PROFILE ROUTES =====
 router.get("/profile", studentProfile_controller_1.getStudentProfile); // Complete student profile with all sections
-router.get("/profile/:username", studentProfile_controller_1.getPublicStudentProfile);
+// router.get("/test/basic", testStudentBasicInfo);
+// router.get("/test/stats", testCodingStats);
+// router.get("/test/streak", testStreak);
+// router.get("/test/leaderboard", testLeaderboard);
+// router.get("/test/heatmap", testHeatmap);
+// router.get("/test/topic", testTopicProgress);
+// router.get("/test/activity", testRecentActivity);
 exports.default = router;

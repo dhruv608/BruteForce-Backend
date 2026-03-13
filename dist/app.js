@@ -21,7 +21,10 @@ dotenv_1.default.config();
 const openApiSpec = yamljs_1.default.load(path_1.default.join(__dirname, '../docs/openapi.yaml'));
 const app = (0, express_1.default)();
 // Middlewares
-app.use((0, cors_1.default)());
+app.use((0, cors_1.default)({
+    origin: ['http://localhost:5000', 'http://127.0.0.1:5501', 'http://localhost:5501'],
+    credentials: true
+}));
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 // Routes
@@ -35,6 +38,8 @@ app.use('/api-docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.de
     customCss: '.swagger-ui .topbar { display: none }',
     customSiteTitle: 'DSA Tracker API Documentation'
 }));
+// Serve static files for CSV UI
+app.use('/csv-ui', express_1.default.static(path_1.default.join(__dirname, 'csv_ui')));
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });

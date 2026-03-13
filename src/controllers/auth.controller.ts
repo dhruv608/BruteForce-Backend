@@ -1,13 +1,17 @@
 import { Request, Response } from 'express';
 import prisma from '../config/prisma';
 import { hashPassword, comparePassword } from '../utils/password.util';
-import { generateAccessToken, generateRefreshToken } from '../utils/jwt.util';
-import { OAuth2Client } from "google-auth-library";
-
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.util';
+import { OAuth2Client } from 'google-auth-library';
+import { generateOTP, saveOTP, validateOTP } from '../utils/otp.util';
+import { sendOTPEmail } from '../utils/email.util';
+import { validateEmail } from '../utils/emailValidation.util';
 
 const googleClient = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET
 );
+
 // Student Registration
 export const registerStudent = async (req: Request, res: Response) => {
   try {
@@ -26,6 +30,14 @@ export const registerStudent = async (req: Request, res: Response) => {
     if (!name || !email || !username || !password || !batch_id) {
       return res.status(400).json({
         error: 'Name, email, username, password, and batch_id are required'
+      });
+    }
+
+    // Validate email domain
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      return res.status(400).json({
+        error: emailValidation.error
       });
     }
 
@@ -116,6 +128,16 @@ export const loginStudent = async (req: Request, res: Response) => {
       return res.status(400).json({
         error: 'Either email or username with password are required'
       });
+    }
+
+    // Validate email domain if email is provided
+    if (email) {
+      const emailValidation = validateEmail(email);
+      if (!emailValidation.isValid) {
+        return res.status(400).json({
+          error: emailValidation.error
+        });
+      }
     }
 
     // Find student by email or username
@@ -347,7 +369,7 @@ export const loginAdmin = async (req: Request, res: Response) => {
 
 // Adding  Referesh Token API
 
-import { verifyRefreshToken } from '../utils/jwt.util';
+
 
 export const refreshToken = async (req: Request, res: Response) => {
   try {
@@ -398,12 +420,22 @@ export const googleLogin = async (req: Request, res: Response) => {
     }
 
     // Verify token with Google
-    const ticket = await googleClient.verifyIdToken({
-      idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+    async function verifyIdToken(idToken: string) {
+      try {
+        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+        const tokenInfo: any = await response.json();
+        
+        if (tokenInfo.error) {
+          throw new Error(tokenInfo.error);
+        }
+        
+        return tokenInfo;
+      } catch (error) {
+        throw new Error('Failed to verify Google token');
+      }
+    }
 
-    const payload = ticket.getPayload();
+    const payload = await verifyIdToken(idToken);
 
     if (!payload?.email) {
       return res.status(400).json({ error: "Invalid Google token" });
@@ -411,6 +443,14 @@ export const googleLogin = async (req: Request, res: Response) => {
 
     const email = payload.email;
     const googleId = payload.sub;
+
+    // Validate email domain
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      return res.status(400).json({
+        error: emailValidation.error
+      });
+    }
 
     // Check if student exists
     const student = await prisma.student.findUnique({
@@ -525,5 +565,142 @@ export const logoutAdmin = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Admin logout error:", error);
     res.status(500).json({ error: "Logout failed" });
+  }
+};
+
+// Forgot Password - Send OTP
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Validate email domain
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      return res.status(400).json({
+        error: emailValidation.error
+      });
+    }
+
+    // Check if user exists (student or admin)
+    let user = null;
+    user = await prisma.student.findUnique({ where: { email } });
+    
+    if (!user) {
+      user = await prisma.admin.findUnique({ where: { email } });
+    }
+
+    if (!user) {
+      console.log(`User not found for email: ${email}`);
+      return res.json({ 
+        message: 'If an account with this email exists, an OTP has been sent' 
+      });
+    }
+
+    // Generate and save OTP
+    const otp = generateOTP();
+    console.log(`Generated OTP for ${email}: ${otp}`);
+    await saveOTP(email, otp);
+    console.log('OTP saved to database');
+
+    // Send OTP email with user name
+    console.log('Attempting to send OTP email...');
+    console.log('Email config:', {
+      EMAIL_USER: process.env.EMAIL_USER,
+      EMAIL_PASS_SET: !!process.env.EMAIL_PASS,
+      EMAIL_SERVICE: process.env.EMAIL_SERVICE || 'gmail'
+    });
+    
+    await sendOTPEmail(email, otp, user?.name);
+    console.log('OTP email sent successfully!');
+
+    res.json({ 
+      message: 'OTP sent to your email address',
+      otp: otp  // Return OTP for testing
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+};
+
+// Reset Password - Verify OTP and reset password
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ 
+        error: 'Email, OTP, and new password are required' 
+      });
+    }
+
+    // Validate email domain
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      return res.status(400).json({
+        error: emailValidation.error
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        error: 'Password must be at least 6 characters long' 
+      });
+    }
+
+    // Verify OTP
+    console.log(`Attempting to validate OTP: ${otp} for email: ${email}`);
+    const isValidOTP = await validateOTP(email, otp);
+    console.log(`OTP validation result: ${isValidOTP}`);
+    
+    if (!isValidOTP) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    // Find user and update password
+    let user = null;
+    user = await prisma.student.findUnique({ where: { email } });
+    
+    let userType = '';
+    if (user) {
+      userType = 'student';
+    } else {
+      user = await prisma.admin.findUnique({ where: { email } });
+      if (user) {
+        userType = 'admin';
+      }
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Hash new password
+    const password_hash = await hashPassword(newPassword);
+
+    // Update password based on user type
+    if (userType === 'student') {
+      await prisma.student.update({
+        where: { email },
+        data: { password_hash }
+      });
+    } else {
+      await prisma.admin.update({
+        where: { email },
+        data: { password_hash }
+      });
+    }
+
+    res.json({ 
+      message: 'Password reset successful. You can now login with your new password.' 
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
   }
 };

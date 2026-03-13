@@ -206,3 +206,15 @@ enum AdminRole {
   TEACHER
   INTERN
 }
+
+model PasswordResetOTP {
+  id          Int      @id @default(autoincrement())
+  email       String   @db.VarChar(150)
+  otp         String   @db.VarChar(6)
+  expires_at  DateTime @default(dbgenerated("(now() + interval '10 minutes')"))
+  created_at  DateTime @default(now())
+  is_used     Boolean  @default(false)
+  
+  @@index([email])
+  @@index([expires_at])
+}

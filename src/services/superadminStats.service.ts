@@ -6,9 +6,7 @@ export const getSuperAdminStatsService = async () => {
             totalCities,
             totalBatches,
             totalAdmins,
-            totalStudents,
-            totalQuestions,
-            totalTopics
+            
         ] = await Promise.all([
             prisma.city.count(),
             prisma.batch.count(),
@@ -17,22 +15,19 @@ export const getSuperAdminStatsService = async () => {
                     role: 'TEACHER'
                 }
             }),
-            prisma.student.count(),
-            prisma.question.count(),
-            prisma.topic.count()
+            
         ]);
 
         return {
             totalCities,
             totalBatches,
             totalAdmins,
-            totalStudents,
-            totalQuestions,
-            totalTopics
+            
         };
     } catch (error) {
         console.error("System stats error:", error);
         throw new Error("Failed to fetch system statistics");
+        
     }
 };
 

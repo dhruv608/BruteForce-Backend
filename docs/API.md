@@ -366,7 +366,8 @@ All endpoints require **authentication + STUDENT role**.
     "github": "johndoe",
     "linkedin": "https://linkedin.com/in/johndoe",
     "leetcode": "john123",
-    "gfg": "john456"
+    "gfg": "john456",
+    "profileImageUrl": "https://bucket.s3.region.amazonaws.com/profile-images/1234567890-123456789.jpg"
   },
   "codingStats": {
     "totalSolved": 243,
@@ -405,6 +406,124 @@ All endpoints require **authentication + STUDENT role**.
       "solvedAt": "2024-01-01T10:00:00.000Z"
     }
   ]
+}
+```
+
+#### 7. Get Public Student Profile
+**Endpoint:** `GET /api/students/profile/:username`
+
+**Description:** Get public student profile by username (no authentication required).
+
+**Path Parameters:**
+- `username`: Student username
+
+**Response:**
+```json
+{
+  "student": {
+    "name": "John Doe",
+    "username": "johndoe",
+    "city": "New York",
+    "batch": "Batch 2024",
+    "year": 2024,
+    "github": "johndoe",
+    "linkedin": "https://linkedin.com/in/johndoe",
+    "leetcode": "john123",
+    "gfg": "john456",
+    "profileImageUrl": "https://bucket.s3.region.amazonaws.com/profile-images/1234567890-123456789.jpg"
+  },
+  "codingStats": {
+    "totalSolved": 243,
+    "totalAssigned": 741,
+    "easy": {
+      "assigned": 215,
+      "solved": 118
+    },
+    "medium": {
+      "assigned": 388,
+      "solved": 104
+    },
+    "hard": {
+      "assigned": 138,
+      "solved": 21
+    }
+  },
+  "streak": {
+    "currentStreak": 1,
+    "maxStreak": 5
+  },
+  "leaderboard": {
+    "globalRank": 15,
+    "cityRank": 3
+  },
+  "heatmap": [
+    {
+      "date": "2024-01-01T00:00:00.000Z",
+      "count": 5
+    }
+  ],
+  "recentActivity": [
+    {
+      "problemTitle": "Two Sum",
+      "difficulty": "EASY",
+      "solvedAt": "2024-01-01T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### 8. Upload Profile Image
+**Endpoint:** `POST /api/students/profile-image`
+
+**Description:** Upload or update student profile image.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request:** `multipart/form-data`
+- `file`: Image file (JPEG, JPG, PNG, max 5MB)
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Profile image uploaded successfully",
+  "data": {
+    "profileImageUrl": "https://bucket.s3.region.amazonaws.com/profile-images/1234567890-123456789.jpg",
+    "fileName": "profile.jpg",
+    "fileSize": 1024000
+  }
+}
+```
+
+#### 9. Delete Profile Image
+**Endpoint:** `DELETE /api/students/profile-image`
+
+**Description:** Delete student profile image.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Profile image deleted successfully"
+}
+```
+
+#### 10. Get Profile Image
+**Endpoint:** `GET /api/students/profile-image`
+
+**Description:** Get student profile image URL.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "profileImageUrl": "https://bucket.s3.region.amazonaws.com/profile-images/1234567890-123456789.jpg"
+  }
 }
 ```
 
@@ -1516,15 +1635,15 @@ All SuperAdmin endpoints require **authentication + SUPERADMIN role**.
 ##### 3.1 Create Admin
 **Endpoint:** `POST /api/superadmin/admins`
 
-**Description:** Create a new admin (SuperAdmin role auto-assigned).
+**Description:** Create a new admin (SuperAdmin only).
 
 **Request Body:**
 ```json
 {
   "name": "Admin User",
   "email": "admin@example.com",
-  "username": "adminuser",
   "password": "password123",
+  "role": "TEACHER|INTERN",
   "batch_id": 1
 }
 ```
@@ -1532,13 +1651,13 @@ All SuperAdmin endpoints require **authentication + SUPERADMIN role**.
 **Response:**
 ```json
 {
+  "success": true,
   "message": "Admin created successfully",
-  "admin": {
+  "data": {
     "id": 2,
     "name": "Admin User",
     "email": "admin@example.com",
-    "username": "adminuser",
-    "role": "SUPERADMIN",
+    "role": "TEACHER",
     "batch_id": 1,
     "city_id": 1,
     "created_at": "2024-01-01T12:00:00.000Z"
@@ -1549,10 +1668,10 @@ All SuperAdmin endpoints require **authentication + SUPERADMIN role**.
 ##### 3.2 Get All Admins
 **Endpoint:** `GET /api/superadmin/admins`
 
-**Description:** Get all admins with optional filters.
+**Description:** Get all admins with optional filters (defaults to TEACHER role only).
 
 **Query Parameters (Optional):**
-- `role`: Filter by role (SUPERADMIN, TEACHER, INTERN)
+- `role`: Filter by role (TEACHER, INTERN) - defaults to TEACHER
 - `batch_id`: Filter by batch ID
 - `city_id`: Filter by city ID
 - `search`: Search by name or username
@@ -1562,12 +1681,12 @@ All SuperAdmin endpoints require **authentication + SUPERADMIN role**.
 **Response:**
 ```json
 {
-  "admins": [
+  "success": true,
+  "data": [
     {
       "id": 1,
       "name": "John Admin",
       "email": "john.admin@example.com",
-      "username": "johnadmin",
       "role": "TEACHER",
       "batch": {
         "id": 1,
@@ -1580,13 +1699,7 @@ All SuperAdmin endpoints require **authentication + SUPERADMIN role**.
       },
       "created_at": "2024-01-01T00:00:00.000Z"
     }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 15,
-    "totalPages": 1
-  }
+  ]
 }
 ```
 
@@ -1609,12 +1722,12 @@ All SuperAdmin endpoints require **authentication + SUPERADMIN role**.
 **Response:**
 ```json
 {
+  "success": true,
   "message": "Admin updated successfully",
-  "admin": {
+  "data": {
     "id": 1,
     "name": "John Admin",
     "email": "john.admin@example.com",
-    "username": "johnadmin",
     "role": "TEACHER",
     "batch_id": 2,
     "city_id": 1,
@@ -1634,6 +1747,7 @@ All SuperAdmin endpoints require **authentication + SUPERADMIN role**.
 **Response:**
 ```json
 {
+  "success": true,
   "message": "Admin deleted successfully"
 }
 ```
@@ -1648,7 +1762,8 @@ All SuperAdmin endpoints require **authentication + SUPERADMIN role**.
 **Response:**
 ```json
 {
-  "stats": {
+  "success": true,
+  "data": {
     "totalCities": 10,
     "totalBatches": 25,
     "totalStudents": 2500,

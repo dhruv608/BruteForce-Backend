@@ -157,6 +157,12 @@ export const createAdminController = async (req: Request, res: Response) => {
 export const getAllAdminsController = async (req: Request, res: Response) => {
     try {
         const filters = req.query;
+        
+        // Default to TEACHER role if no role filter is provided (SuperAdmin context)
+        if (!filters.role) {
+            filters.role = 'TEACHER';
+        }
+        
         const admins = await getAllAdminsService(filters);
 
         return res.status(200).json({

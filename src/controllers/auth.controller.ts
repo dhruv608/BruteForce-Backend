@@ -189,10 +189,18 @@ export const loginStudent = async (req: Request, res: Response) => {
       data: { refresh_token: refreshToken },
     });
 
+    // Set refresh token in HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Only secure in production
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/'
+    });
+
     res.json({
       message: 'Login successful',
       accessToken,
-      refreshToken,
       user: {
         id: student.id,
         name: student.name,
@@ -280,7 +288,7 @@ export const registerAdmin = async (req: Request, res: Response) => {
     res.status(201).json({
       message: 'Admin registered successfully',
       accessToken,
-      refreshToken,
+
       user: admin,
     });
   } catch (error) {
@@ -350,10 +358,18 @@ export const loginAdmin = async (req: Request, res: Response) => {
       data: { refresh_token: refreshToken },
     });
 
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Only secure in production
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/'
+    });
+
     res.json({
       message: 'Login successful',
       accessToken,
-      refreshToken,
+
       user: {
         id: admin.id,
         name: admin.name,
@@ -369,11 +385,10 @@ export const loginAdmin = async (req: Request, res: Response) => {
 
 // Adding  Referesh Token API
 
-
-
 export const refreshToken = async (req: Request, res: Response) => {
   try {
-    const { refreshToken } = req.body;
+    // Get refresh token from HTTP-only cookie
+    const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
       return res.status(400).json({ error: 'Refresh token required' });
@@ -503,7 +518,7 @@ export const googleLogin = async (req: Request, res: Response) => {
     res.json({
       message: "Google login successful",
       accessToken,
-      refreshToken,
+
       user: {
         id: student.id,
         name: student.name,
@@ -533,9 +548,11 @@ export const logoutStudent = async (req: Request, res: Response) => {
       });
     }
 
+    // Clear refresh token cookie
+    res.clearCookie('refreshToken');
+
     res.json({
       message: "Student logout successful",
-      // Refresh token cleared from database
     });
   } catch (error) {
     console.error("Student logout error:", error);
@@ -556,11 +573,12 @@ export const logoutAdmin = async (req: Request, res: Response) => {
         data: { refresh_token: null }
       });
     }
-    // by removing the token from storage.
+
+    // Clear refresh token cookie
+    res.clearCookie('refreshToken');
 
     res.json({
       message: "Admin logout successful",
-      // Optionally, you could add token blacklisting here if needed
     });
   } catch (error) {
     console.error("Admin logout error:", error);

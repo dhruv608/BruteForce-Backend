@@ -36,6 +36,7 @@ router.post("/leaderboard", getStudentLeaderboard); // Single student leaderboar
 router.post("/profile-image", uploadSingle, uploadProfileImage);  // Upload/Update profile image
 router.delete("/profile-image", deleteProfileImage);              // Delete profile image
 router.get("/profile-image", getProfileImage);                   // Get profile image URL
+
 router.get("/profile", getStudentProfile); // Complete student profile with all sections
 
 

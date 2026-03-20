@@ -370,7 +370,6 @@ export const loginAdmin = async (req: Request, res: Response) => {
 // Adding  Referesh Token API
 
 
-
 export const refreshToken = async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;

@@ -19,10 +19,10 @@ exports.generalLimiter = (0, express_rate_limit_1.default)({
 // Strict rate limiter for authentication endpoints
 exports.authLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // Limit each IP to 5 auth requests per windowMs
+    max: 100, // Limit each IP to 5 auth requests per windowMs
     message: {
         error: 'Too many authentication attempts, please try again later.',
-        retryAfter: '15 minutes'
+        retryAfter: '100 minutes'
     },
     standardHeaders: true,
     legacyHeaders: false,

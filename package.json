@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --ext ts,js,json --exec tsx src/server.ts",
     "build": "tsc",
+    "dev": "nodemon --ext ts,js,json --exec tsx src/server.ts",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

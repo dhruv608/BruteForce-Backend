@@ -50,7 +50,7 @@ export function startSyncJob() {
         
         // Exponential backoff: 2s, 4s, 8s
         const delay = Math.pow(2, attempt) * 1000;
-        console.log(`⏳ Retrying in ${delay}ms...`);
+        console.log(` Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }

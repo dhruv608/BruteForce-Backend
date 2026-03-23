@@ -3,9 +3,27 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getLeaderboardByType = exports.getLeaderboardPost = exports.getStudentLeaderboard = exports.getAdminLeaderboard = void 0;
+exports.getLeaderboardByType = exports.getLeaderboardPost = exports.getStudentLeaderboard = exports.getAdminLeaderboard = exports.getAvailableYearsController = void 0;
 const leaderboard_service_1 = require("../services/leaderboard.service");
 const prisma_1 = __importDefault(require("../config/prisma"));
+// Get available years for leaderboard filters
+const getAvailableYearsController = async (req, res) => {
+    try {
+        const years = await (0, leaderboard_service_1.getAvailableYears)();
+        return res.status(200).json({
+            success: true,
+            years: years
+        });
+    }
+    catch (error) {
+        console.error("Error fetching available years:", error);
+        return res.status(500).json({
+            success: false,
+            message: error instanceof Error ? error.message : "Failed to fetch available years"
+        });
+    }
+};
+exports.getAvailableYearsController = getAvailableYearsController;
 // Admin Leaderboard API with pagination and search
 const getAdminLeaderboard = async (req, res) => {
     try {
@@ -27,7 +45,7 @@ const getAdminLeaderboard = async (req, res) => {
         };
         // Step 5 — Use optimized service
         const result = await (0, leaderboard_service_1.getLeaderboardWithPagination)(filters, pagination, search);
-        // Step 6 — Format leaderboard with simplified data and dynamic rank
+        // Step 6 — Format leaderboard with explicitly requested data mapping
         const formattedLeaderboard = result.leaderboard.map(entry => {
             // Determine which rank fields to use based on type
             let globalRank, cityRank;
@@ -50,12 +68,15 @@ const getAdminLeaderboard = async (req, res) => {
                 username: entry.username,
                 batch_year: entry.batch_year,
                 city_name: entry.city_name,
-                max_streak: entry.max_streak,
-                easy_solved: entry.easy_completion || 0,
-                medium_solved: entry.medium_completion || 0,
-                hard_solved: entry.hard_completion || 0,
-                total_solved: (((entry.easy_completion || 0) + (entry.medium_completion || 0) + (entry.hard_completion || 0)) / 3).toFixed(2),
-                rank: filters.city === 'all' ? globalRank : cityRank
+                max_streak: entry.max_streak || 0,
+                easy_completion: Number(entry.easy_completion || 0),
+                medium_completion: Number(entry.medium_completion || 0),
+                hard_completion: Number(entry.hard_completion || 0),
+                total_solved: Number(entry.total_solved || 0),
+                score: Number(entry.score || 0),
+                global_rank: globalRank,
+                city_rank: cityRank,
+                last_calculated: entry.last_calculated
             };
         });
         return res.status(200).json({
@@ -119,7 +140,7 @@ const getStudentLeaderboard = async (req, res) => {
         const pagination = { page: 1, limit: 10 };
         let search = username;
         const top10Result = await (0, leaderboard_service_1.getLeaderboardWithPagination)(filters, pagination, search);
-        // Step 8 — Format top10 leaderboard with simplified data
+        // Step 8 — Format top10 leaderboard with explicitly requested data mapping
         const formattedTop10 = top10Result.leaderboard.map(entry => {
             // Determine which rank fields to use based on type
             let globalRank, cityRank;
@@ -142,12 +163,15 @@ const getStudentLeaderboard = async (req, res) => {
                 username: entry.username,
                 batch_year: entry.batch_year,
                 city_name: entry.city_name,
-                max_streak: entry.max_streak,
-                easy_solved: entry.easy_completion || 0,
-                medium_solved: entry.medium_completion || 0,
-                hard_solved: entry.hard_completion || 0,
-                total_solved: (((entry.easy_completion || 0) + (entry.medium_completion || 0) + (entry.hard_completion || 0)) / 3).toFixed(2),
-                rank: filters.city === 'all' ? globalRank : cityRank
+                max_streak: entry.max_streak || 0,
+                easy_completion: Number(entry.easy_completion || 0),
+                medium_completion: Number(entry.medium_completion || 0),
+                hard_completion: Number(entry.hard_completion || 0),
+                total_solved: Number(entry.total_solved || 0),
+                score: Number(entry.score || 0),
+                global_rank: globalRank,
+                city_rank: cityRank,
+                last_calculated: entry.last_calculated
             };
         });
         // Step 9 — Get logged-in student's rank using direct query

@@ -347,11 +347,20 @@ const refreshToken = async (req, res) => {
         if (decoded.userType === 'admin') {
             user = await prisma_1.default.admin.findUnique({
                 where: { id: decoded.id },
+                include: {
+                    batch: {
+                        select: { id: true, batch_name: true, city: { select: { id: true, city_name: true } } }
+                    }
+                }
             });
         }
         else {
             user = await prisma_1.default.student.findUnique({
                 where: { id: decoded.id },
+                include: {
+                    batch: true,
+                    city: true
+                }
             });
         }
         if (!user || user.refresh_token !== refreshToken) {
@@ -362,6 +371,19 @@ const refreshToken = async (req, res) => {
             email: user.email,
             role: decoded.userType === 'admin' ? user.role : 'STUDENT',
             userType: decoded.userType,
+            ...(user.batch && decoded.userType === 'admin' && user.batch.city && {
+                batchId: user.batch.id,
+                batchName: user.batch.batch_name,
+                cityId: user.batch.city.id,
+                cityName: user.batch.city.city_name,
+            }),
+            ...(user.batch && decoded.userType === 'student' && user.city && {
+                batchId: user.batch.id,
+                batchName: user.batch.batch_name,
+                batchSlug: user.batch.slug,
+                cityId: user.city.id,
+                cityName: user.city.city_name,
+            }),
         });
         res.json({ accessToken: newAccessToken });
     }

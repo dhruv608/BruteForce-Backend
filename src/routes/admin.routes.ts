@@ -58,6 +58,7 @@ router.delete("/topics/:topicSlug", isTeacherOrAbove, deleteTopic);
 router.post("/questions", isTeacherOrAbove, createQuestion);
 
 router.get("/questions", getAllQuestions);
+
 router.patch(
   "/questions/:id",
   isTeacherOrAbove,
@@ -89,7 +90,6 @@ router.post("/student/reportdownload", downloadBatchReportController);
 
 router.post("/leaderboard", verifyToken, isAdmin, getAdminLeaderboard); // Single admin leaderboard with pagination and search
 
-router.get("/questions", getAssignedQuestionsController);
 
 router.patch("/students/:id", isTeacherOrAbove, isAdmin, updateStudentDetails);
 
@@ -160,7 +160,7 @@ router.get(
   "/:batchSlug/topics/:topicSlug/classes/:classSlug/questions",
   getAssignedQuestionsOfClass
 );
-0
+
 router.delete(
   "/:batchSlug/topics/:topicSlug/classes/:classSlug/questions/:questionId",
   isTeacherOrAbove,

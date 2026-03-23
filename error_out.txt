@@ -1,1 +1,0 @@
-Database query parameter error: Invalid type parameter. Must be one of: all, weekly, monthly. This usually indicates a problem with SQL parameter binding.

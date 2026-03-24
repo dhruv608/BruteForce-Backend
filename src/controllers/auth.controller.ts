@@ -536,6 +536,16 @@ export const googleLogin = async (req: Request, res: Response) => {
       where: { id: student.id },
       data: { refresh_token: refreshToken },
     });
+   
+    // For Google Auth
+    // Set refresh token in HTTP-only cookie
+    // res.cookie('refreshToken', refreshToken, {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === 'production', // Only secure in production
+    //   sameSite: 'strict',
+    //   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    //   path: '/'
+    // });
 
     res.json({
       message: "Google login successful",
@@ -719,13 +729,14 @@ export const resetPassword = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    // ADD THIS: Check if new password is same as current password
-    const bcrypt = require('bcrypt');
-    const isSamePassword = await bcrypt.compare(newPassword, user.password_hash);
-    if (isSamePassword) {
-      return res.status(400).json({
-        error: 'New password cannot be the same as your current password'
-      });
+    // Check if new password is same as current password (only if user has existing password)
+    if (user.password_hash) {
+      const isSamePassword = await comparePassword(newPassword, user.password_hash);
+      if (isSamePassword) {
+        return res.status(400).json({
+          error: 'New password cannot be the same as your current password'
+        });
+      }
     }
     // Hash new password
     const password_hash = await hashPassword(newPassword);

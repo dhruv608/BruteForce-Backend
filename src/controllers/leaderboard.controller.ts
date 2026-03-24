@@ -217,6 +217,7 @@ export const getStudentLeaderboard = async (req: Request, res: Response) => {
                     batch_year: student.batch?.year,
                     city_name: studentEntry.city_name,
                     max_streak: studentEntry.max_streak,
+                    score: studentEntry.score,
                     easy_solved: easyCompletion,
                     medium_solved: mediumCompletion,
                     hard_solved: hardCompletion,

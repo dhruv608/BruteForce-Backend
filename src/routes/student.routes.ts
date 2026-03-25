@@ -58,13 +58,13 @@ router.get("/profile-image", getProfileImage); // Get profile image URL
 
 router.put("/profile", completeProfile); // Update student profile (leetcode, gfg, etc)
 router.patch("/username", updateUsername); // Update username only
-router.get("/debug-auth", (req, res) => {
-  res.json({
-    message: "Auth debug",
-    user: req.user,
-    studentId: (req as any).studentId,
-    headers: req.headers
-  });
-}); // Debug authentication
+// router.get("/debug-auth", (req, res) => {
+//   res.json({
+//     message: "Auth debug",
+//     user: req.user,
+//     studentId: (req as any).studentId,
+//     headers: req.headers
+//   });
+// }); // Debug authentication
 
 export default router;

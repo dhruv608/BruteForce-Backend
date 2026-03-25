@@ -72,6 +72,8 @@ router.delete(
   isTeacherOrAbove,
   deleteQuestion
 );
+
+// Bulk Operation for Question 
 router.post(
   "/questions/bulk-upload",
   isTeacherOrAbove,
@@ -79,8 +81,15 @@ router.post(
   bulkUploadQuestions
 );
 
+// Download Batch Report
+router.post("/student/reportdownload", downloadBatchReportController);
 
-
+// Bulk Operation for Studenta 
+router.post(
+  "/bulk-operations",
+  upload.single("file"),
+  bulkStudentUploadController
+);
 
 // Admin Statistics
 router.post("/stats", getAdminStats);
@@ -88,8 +97,7 @@ router.post("/stats", getAdminStats);
 // Roles
 router.get("/roles", getRolesController);
 
-// Download Batch Report
-router.post("/student/reportdownload", downloadBatchReportController);
+
 
 router.post("/leaderboard", verifyToken, isAdmin, getAdminLeaderboard); // Single admin leaderboard with pagination and search
 

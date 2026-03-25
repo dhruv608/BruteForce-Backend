@@ -12,8 +12,17 @@ export const bulkUploadQuestions = async (
       });
     }
 
+    const { topicId } = req.body;
+
+    if (!topicId) {
+      return res.status(400).json({
+        error: "Topic ID is required",
+      });
+    }
+
     const result = await bulkUploadQuestionsService(
-      req.file.buffer
+      req.file.buffer,
+      Number(topicId)
     );
 
     return res.json({

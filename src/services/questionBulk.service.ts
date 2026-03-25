@@ -8,11 +8,11 @@ interface CSVRow {
   question_link: string;
   level: "EASY" | "MEDIUM" | "HARD";
   type: "HOMEWORK" | "CLASSWORK";
-  topic_slug: string;
 }
 
 export const bulkUploadQuestionsService = async (
-  fileBuffer: Buffer
+  fileBuffer: Buffer,
+  topicId: number
 ) => {
   const rows: CSVRow[] = [];
 
@@ -30,22 +30,18 @@ export const bulkUploadQuestionsService = async (
     throw new Error("CSV file is empty");
   }
 
-  // Fetch all topics once
-  const topics = await prisma.topic.findMany();
-  const topicMap = new Map(
-    topics.map((t) => [t.slug, t.id])
-  );
+  // Validate topic exists
+  const topic = await prisma.topic.findUnique({
+    where: { id: topicId },
+  });
+
+  if (!topic) {
+    throw new Error("Topic not found");
+  }
 
   const dataToInsert = [];
 
   for (const row of rows) {
-    const topicId = topicMap.get(row.topic_slug);
-
-    if (!topicId) {
-      console.log(`Skipping: topic not found → ${row.topic_slug}`);
-      continue;
-    }
-
     const level = Level[row.level as keyof typeof Level];
     const type = QuestionType[row.type as keyof typeof QuestionType];
 

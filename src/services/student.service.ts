@@ -138,37 +138,10 @@ export const getAllStudentsService = async (query: any) => {
                 email: student.email,
                 username: student.username,
                 enrollment_id: student.enrollment_id,
-
-                city: student.city?.city_name || null,
-                batch: student.batch?.batch_name || null,
-
+                profile_image_url: student.profile_image_url,
                 leetcode_id: student.leetcode_id,
                 gfg_id: student.gfg_id,
-
-                github: student.github,
-                linkedin: student.linkedin,
-                profile_image_url:student.profile_image_url,
-                gfg_total_solved: student.gfg_total_solved,
-                lc_total_solved: student.lc_total_solved,
-
-                totalSolved: student._count.progress,
-
-                // Leaderboard ranks
-                global_rank: leaderboard?.global_rank || null,
-                city_rank: leaderboard?.city_rank || null,
-
-                stats: {
-                    total_solved: student._count.progress,
-                    easy_solved: leaderboard?.easy_solved || 0,
-                    medium_solved: leaderboard?.medium_solved || 0,
-                    hard_solved: leaderboard?.hard_solved || 0
-                },
-
-                provider: student.provider,
-                last_synced_at: student.last_synced_at,
-
-                created_at: student.created_at,
-                updated_at: student.updated_at
+                totalSolved: student._count.progress
             };
         });
 

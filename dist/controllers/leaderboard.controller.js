@@ -70,9 +70,6 @@ exports.getAdminLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res) 
                 city_name: entry.city_name,
                 profile_image_url: entry.profile_image_url || null,
                 max_streak: entry.max_streak || 0,
-                easy_completion: Number(entry.easy_completion || 0),
-                medium_completion: Number(entry.medium_completion || 0),
-                hard_completion: Number(entry.hard_completion || 0),
                 total_solved: Number(entry.total_solved || 0),
                 score: Number(entry.score || 0),
                 global_rank: globalRank,
@@ -167,9 +164,6 @@ exports.getStudentLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res
                 batch_year: entry.batch_year,
                 city_name: entry.city_name,
                 max_streak: entry.max_streak || 0,
-                easy_completion: Number(entry.easy_completion || 0),
-                medium_completion: Number(entry.medium_completion || 0),
-                hard_completion: Number(entry.hard_completion || 0),
                 total_solved: Number(entry.total_solved || 0),
                 score: Number(entry.score || 0),
                 global_rank: globalRank,
@@ -185,11 +179,6 @@ exports.getStudentLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res
             // The getStudentRankDirect already returns the correct rank fields based on type
             const globalRank = studentEntry.global_rank;
             const cityRank = studentEntry.city_rank;
-            // Handle potential null/undefined values in completion percentages
-            const easyCompletion = parseFloat(studentEntry.easy_completion) || 0;
-            const mediumCompletion = parseFloat(studentEntry.medium_completion) || 0;
-            const hardCompletion = parseFloat(studentEntry.hard_completion) || 0;
-            const totalCompletion = ((easyCompletion + mediumCompletion + hardCompletion) / 3).toFixed(2);
             yourRank = {
                 rank: filters.city === 'all' ? globalRank : cityRank,
                 student_id: studentId,
@@ -200,11 +189,11 @@ exports.getStudentLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res
                 city_name: studentEntry.city_name,
                 max_streak: studentEntry.max_streak,
                 score: studentEntry.score,
-                easy_solved: easyCompletion,
-                medium_solved: mediumCompletion,
-                hard_solved: hardCompletion,
-                total_solved: studentEntry.total_solved, // Actual solved count
-                total_assigned: studentEntry.hard_assigned + studentEntry.medium_assigned + studentEntry.easy_assigned // Total assigned
+                easy_solved: 0,
+                medium_solved: 0,
+                hard_solved: 0,
+                total_solved: studentEntry.total_solved,
+                total_assigned: 0
             };
         }
         else {
@@ -356,10 +345,7 @@ exports.getLeaderboardByType = (0, asyncHandler_1.asyncHandler)(async (req, res)
                 city_rank: studentEntry.alltime_city_rank,
                 score: studentEntry.score,
                 max_streak: studentEntry.max_streak,
-                total_solved: studentEntry.total_solved,
-                hard_completion: studentEntry.hard_completion,
-                medium_completion: studentEntry.medium_completion,
-                easy_completion: studentEntry.easy_completion
+                total_solved: studentEntry.total_solved
             },
             problem_solving_stats: {
                 total_questions_solved: totalSolved,

@@ -99,7 +99,7 @@ router.get("/roles", getRolesController);
 
 
 
-router.post("/leaderboard", verifyToken, isAdmin, getAdminLeaderboard); // Single admin leaderboard with pagination and search
+router.post("/leaderboard", getAdminLeaderboard); // Single admin leaderboard with pagination and search
 
 
 router.patch("/students/:id", isTeacherOrAbove, isAdmin, updateStudentDetails);

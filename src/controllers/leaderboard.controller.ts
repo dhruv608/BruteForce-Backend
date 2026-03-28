@@ -24,7 +24,7 @@ export const getAvailableYearsController = asyncHandler(async (req: Request, res
         });
 
 // Admin Leaderboard API with pagination and search
-export const getAdminLeaderboard = async (req: Request, res: Response) => {
+export const getAdminLeaderboard = asyncHandler(async (req: Request, res: Response) => {
     try {
         // Step 1 — Read filters from request body
         const body = req.body || {};
@@ -95,14 +95,14 @@ export const getAdminLeaderboard = async (req: Request, res: Response) => {
         });
 
             } catch (error) {
-    if (error instanceof ApiError) throw error;
+                if (error instanceof ApiError) throw error;
                 console.error("Admin leaderboard error:", error);
                 return res.status(500).json({
                     success: false,
                     message: error instanceof Error ? error.message : "An error occurred"
                 });
             }
-        });
+});
 
 // Student Leaderboard API with top 10 and personal rank
 export const getStudentLeaderboard = asyncHandler(async (req: Request, res: Response) => {
@@ -115,112 +115,137 @@ export const getStudentLeaderboard = asyncHandler(async (req: Request, res: Resp
                         message: "Student ID not found in request."
                     });
                 }
-            }
-        });
+                
+                // Step 2 — Get filters from request body
+                const body = req.body || {};
+                const { city, type, year, username } = body;
+                
+                // Step 3 — Get student details
+                const student = await prisma.student.findUnique({
+                    where: { id: studentId },
+                    include: {
+                        city: {
+                            select: { city_name: true }
+                        },
+                        batch: {
+                            select: { year: true }
+                        }
+                    }
+                });
 
-        if (!student) {
-            return res.status(404).json({
-                success: false,
-                message: "Student not found."
-            });
-        }
+                if (!student) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "Student not found."
+                    });
+                }
+                
+                // Step 4 — Prepare filters
+                const filters = {
+                    type: type || 'all',
+                    city: city || 'all',
+                    year: year || student.batch?.year || new Date().getFullYear()
+                };
+                
+                // Step 5 — Fetch Top 10 using shared service with limit 10
+                const pagination = { page: 1, limit: 10 };
+                let search = username as string;
+                
+                const top10Result = await getLeaderboardWithPagination(filters, pagination, search);
         
-        // Step 5 — Prepare filters
-        const filters = {
-            type: type || 'all',
-            city: city || 'all',
-            year: year || student.batch?.year || new Date().getFullYear()
-        };
+        // Step 6 — Format top10 leaderboard with explicitly requested data mapping
+                const formattedTop10 = top10Result.leaderboard.map(entry => {
+                    // Determine which rank fields to use based on type
+                    let globalRank, cityRank;
+                    switch(filters.type) {
+                        case 'weekly':
+                            globalRank = entry.weekly_global_rank;
+                            cityRank = entry.weekly_city_rank;
+                            break;
+                        case 'monthly':
+                            globalRank = entry.monthly_global_rank;
+                            cityRank = entry.monthly_city_rank;
+                            break;
+                        default: // 'all' or 'alltime'
+                            globalRank = entry.alltime_global_rank;
+                            cityRank = entry.alltime_city_rank;
+                    }
+                    
+                    return {
+                        student_id: entry.student_id,
+                        name: entry.name,
+                        username: entry.username,
+                        profile_image_url: entry.profile_image_url,
+                        batch_year: entry.batch_year,
+                        city_name: entry.city_name,
+                        max_streak: entry.max_streak || 0,
+                        total_solved: Number(entry.total_solved || 0),
+                        score: Number(entry.score || 0),
+                        global_rank: globalRank,
+                        city_rank: cityRank
+                    };
+                });
         
-        // Step 6 — Fetch Top 10 using shared service with limit 10
-        const pagination = { page: 1, limit: 10 };
-        let search = username as string;
-        
-        const top10Result = await getLeaderboardWithPagination(filters, pagination, search);
-        
-        // Step 8 — Format top10 leaderboard with explicitly requested data mapping
-        const formattedTop10 = top10Result.leaderboard.map(entry => {
-            // Determine which rank fields to use based on type
-            let globalRank, cityRank;
-            switch(filters.type) {
-                case 'weekly':
-                    globalRank = entry.weekly_global_rank;
-                    cityRank = entry.weekly_city_rank;
-                    break;
-                case 'monthly':
-                    globalRank = entry.monthly_global_rank;
-                    cityRank = entry.monthly_city_rank;
-                    break;
-                default: // 'all' or 'alltime'
-                    globalRank = entry.alltime_global_rank;
-                    cityRank = entry.alltime_city_rank;
-            }
-            
-            return {
-                student_id: entry.student_id,
-                name: entry.name,
-                username: entry.username,
-                profile_image_url: entry.profile_image_url,
-                batch_year: entry.batch_year,
-                city_name: entry.city_name,
-                max_streak: entry.max_streak || 0,
-                total_solved: Number(entry.total_solved || 0),
-                score: Number(entry.score || 0),
-                global_rank: globalRank,
-                city_rank: cityRank
-            };
-        });
-        
-        // Step 9 — Get logged-in student's rank using direct query
-        const studentEntry = await getStudentRankDirect(studentId, filters);
-        
-        // Step 10 — Prepare yourRank response with simplified data
-        let yourRank = null;
-        let rankMessage = null;
-        
-        if (studentEntry) {
-            // The getStudentRankDirect already returns the correct rank fields based on type
-            const globalRank = studentEntry.global_rank;
-            const cityRank = studentEntry.city_rank;
-            
-            yourRank = {
-                rank: filters.city === 'all' ? globalRank : cityRank,
-                student_id: studentId,
-                name: student.name,
-                username: student.username,
-                profile_image_url: student.profile_image_url,
-                batch_year: student.batch?.year,
-                city_name: studentEntry.city_name,
-                max_streak: studentEntry.max_streak,
-                score: studentEntry.score,
-                easy_solved: 0,
-                medium_solved: 0,
-                hard_solved: 0,
-                total_solved: studentEntry.total_solved,
-                total_assigned: 0
-            };
-        } else {
-            // Check if year mismatch
-            if (year && year !== student.batch?.year) {
-                rankMessage = `Student belongs to ${student.batch?.year} batch, but ${year} data requested`;
-            } else {
-                rankMessage = "Student rank not found in current filters";
-            }
-        }
-        
-        return res.status(200).json({
-            success: true,
-            data: {
-                top10: formattedTop10,
-                yourRank,
-                message: rankMessage,
-                filters: {
-                    city: filters.city,
-                    year: filters.year,
-                    type: filters.type
-                },
-                available_cities: top10Result.available_cities,
-                last_calculated: top10Result.last_calculated
+        // Step 7 — Get logged-in student's rank using direct query
+                const studentEntry = await getStudentRankDirect(studentId, filters);
+                
+                // Step 8 — Prepare yourRank response with simplified data
+                let yourRank = null;
+                let rankMessage = null;
+                
+                if (studentEntry) {
+                    // The getStudentRankDirect already returns the correct rank fields based on type
+                    const globalRank = studentEntry.global_rank;
+                    const cityRank = studentEntry.city_rank;
+                    
+                    yourRank = {
+                        rank: filters.city === 'all' ? globalRank : cityRank,
+                        student_id: studentId,
+                        name: student.name,
+                        username: student.username,
+                        profile_image_url: student.profile_image_url,
+                        batch_year: student.batch?.year,
+                        city_name: studentEntry.city_name,
+                        max_streak: studentEntry.max_streak,
+                        score: studentEntry.score,
+                        easy_solved: 0,
+                        medium_solved: 0,
+                        hard_solved: 0,
+                        total_solved: studentEntry.total_solved,
+                        total_assigned: 0
+                    };
+                } else {
+                    // Check if year mismatch
+                    if (year && year !== student.batch?.year) {
+                        rankMessage = `Student belongs to ${student.batch?.year} batch, but ${year} data requested`;
+                    } else {
+                        rankMessage = "Student rank not found in current filters";
+                    }
+                }
+                
+                return res.status(200).json({
+                    success: true,
+                    data: {
+                        top10: formattedTop10,
+                        yourRank,
+                        message: rankMessage,
+                        filters: {
+                            city: filters.city,
+                            year: filters.year,
+                            type: filters.type
+                        },
+                        available_cities: top10Result.available_cities,
+                        last_calculated: top10Result.last_calculated
+                    }
+                });
+
+            } catch (error) {
+                if (error instanceof ApiError) throw error;
+                console.error("Student leaderboard error:", error);
+                return res.status(500).json({
+                    success: false,
+                    message: error instanceof Error ? error.message : "An error occurred"
+                });
             }
         });
 
@@ -354,9 +379,7 @@ export const getLeaderboardByType = asyncHandler(async (req: Request, res: Respo
                         score: studentEntry.score,
                         max_streak: studentEntry.max_streak,
                         total_solved: studentEntry.total_solved,
-                        hard_completion: studentEntry.hard_completion,
-                        medium_completion: studentEntry.medium_completion,
-                        easy_completion: studentEntry.easy_completion
+                
                     },
                     problem_solving_stats: {
                         total_questions_solved: totalSolved,

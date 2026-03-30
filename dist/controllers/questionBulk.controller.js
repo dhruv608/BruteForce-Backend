@@ -20,6 +20,8 @@ exports.bulkUploadQuestions = (0, asyncHandler_1.asyncHandler)(async (req, res) 
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });

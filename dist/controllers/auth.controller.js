@@ -92,6 +92,8 @@ exports.registerStudent = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error('Register error:', error);
         throw new ApiError_1.ApiError(500, 'Failed to register student');
     }
@@ -181,6 +183,8 @@ exports.loginStudent = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error('Login error:', error);
         throw new ApiError_1.ApiError(500, 'Failed to login');
     }
@@ -244,6 +248,8 @@ exports.registerAdmin = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error('Admin register error:', error);
         throw new ApiError_1.ApiError(500, 'Failed to register admin');
     }
@@ -318,6 +324,8 @@ exports.loginAdmin = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error('Admin login error:', error);
         throw new ApiError_1.ApiError(500, 'Failed to login');
     }
@@ -376,6 +384,8 @@ exports.refreshToken = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         res.json({ accessToken: newAccessToken });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(403, 'Invalid refresh token');
     }
 });
@@ -396,6 +406,8 @@ exports.googleLogin = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
                 return payload;
             }
             catch (error) {
+                if (error instanceof ApiError_1.ApiError)
+                    throw error;
                 console.error("Google Auth Library verifyIdToken Error:", error.message);
                 throw new Error('Failed to verify Google token: ' + error.message);
             }
@@ -474,6 +486,8 @@ exports.googleLogin = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error("Google login error:", error);
         throw new ApiError_1.ApiError(401, "Invalid Google token");
     }
@@ -497,6 +511,8 @@ exports.logoutStudent = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error("Student logout error:", error);
         throw new ApiError_1.ApiError(500, "Logout failed");
     }
@@ -520,6 +536,8 @@ exports.logoutAdmin = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error("Admin logout error:", error);
         throw new ApiError_1.ApiError(500, "Logout failed");
     }
@@ -568,6 +586,8 @@ exports.forgotPassword = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error('Forgot password error:', error);
         throw new ApiError_1.ApiError(500, 'Failed to send OTP');
     }
@@ -638,6 +658,8 @@ exports.resetPassword = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error('Reset password error:', error);
         throw new ApiError_1.ApiError(500, 'Failed to reset password');
     }

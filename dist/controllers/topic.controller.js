@@ -23,6 +23,8 @@ exports.createTopic = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -33,6 +35,8 @@ exports.getAllTopics = (0, asyncHandler_1.asyncHandler)(async (_req, res) => {
         return res.json(topics);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(500, "Failed to fetch topics");
     }
 });
@@ -46,6 +50,8 @@ exports.getTopicsForBatch = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
         return res.json(data);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(500, "Failed to fetch topics for batch");
     }
 });
@@ -71,6 +77,8 @@ exports.updateTopic = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -85,6 +93,8 @@ exports.deleteTopic = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -110,6 +120,8 @@ exports.createTopicsBulk = (0, asyncHandler_1.asyncHandler)(async (req, res) => 
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(500, error.message);
     }
 });
@@ -130,6 +142,8 @@ exports.getTopicsWithBatchProgress = (0, asyncHandler_1.asyncHandler)(async (req
         return res.json(topics);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(500, error.message || "Failed to fetch topics with progress");
     }
 });
@@ -155,6 +169,8 @@ exports.getTopicOverviewWithClassesSummary = (0, asyncHandler_1.asyncHandler)(as
         return res.json(topicOverview);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(500, error.message || "Failed to fetch topic overview");
     }
 });
@@ -235,6 +251,8 @@ exports.getTopicProgressByUsername = (0, asyncHandler_1.asyncHandler)(async (req
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(500, error.message || "Failed to fetch topic progress");
     }
 });

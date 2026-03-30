@@ -13,6 +13,8 @@ exports.createQuestion = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -31,6 +33,8 @@ exports.getAllQuestions = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         return res.json(result);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -47,6 +51,8 @@ exports.updateQuestion = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -61,6 +67,8 @@ exports.deleteQuestion = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -73,6 +81,8 @@ exports.getAssignedQuestionsController = (0, asyncHandler_1.asyncHandler)(async 
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         return res.status(400).json({
             success: false,
             error: error.message || "Failed to fetch questions"

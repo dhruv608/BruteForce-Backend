@@ -29,6 +29,8 @@ exports.checkUsernameAvailability = (0, asyncHandler_1.asyncHandler)(async (req,
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error("Error checking username availability:", error);
         throw new ApiError_1.ApiError(500, "Failed to check username availability");
     }
@@ -76,6 +78,8 @@ exports.updateUsername = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error("Error updating username:", error);
         throw new ApiError_1.ApiError(500, "Failed to update username");
     }

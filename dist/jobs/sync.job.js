@@ -10,8 +10,10 @@ const leaderboardSync_service_1 = require("../services/leaderboardSync.service")
 function startSyncJob() {
     console.log("Sync cron job started");
     //  Combined sync job: Student Progress FIRST, then Leaderboard
-    node_cron_1.default.schedule("0 */4 * * *", async () => {
-        // cron.schedule("* * * * *", async () => {
+    // cron.schedule("0 */4 * * *", async () => {
+    // cron.schedule("* * * * *", async () => {
+    node_cron_1.default.schedule("0 9,18,23 * * *", async () => {
+        // Runs: 9:00 AM, 18:00 (6 PM), 23:00 (11 PM)
         const maxRetries = 3;
         let attempt = 0;
         while (attempt < maxRetries) {

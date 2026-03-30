@@ -160,11 +160,9 @@ const getLeaderboardWithPagination = async (filters, pagination, search) => {
                 l.current_streak,
                 l.max_streak,
                 -- Dynamic score calculation
-                ROUND(
-                    (l.hard_solved::numeric / NULLIF(b.hard_assigned,0) * 20)*100 +
-                    (l.medium_solved::numeric / NULLIF(b.medium_assigned,0) * 15)*100 +
-                    (l.easy_solved::numeric / NULLIF(b.easy_assigned,0) * 10)*100, 2
-                ) AS score,
+             round(   (l.hard_solved::numeric / NULLIF(b.hard_assigned,0) * 2000) +
+                (l.medium_solved::numeric / NULLIF(b.medium_assigned,0) * 1500) +
+                (l.easy_solved::numeric / NULLIF(b.easy_assigned,0) * 1000),2) AS score,
                 -- All time-based rankings
                 l.weekly_global_rank,
                 l.weekly_city_rank,
@@ -286,17 +284,15 @@ const getStudentRankDirect = async (studentId, filters) => {
             params.push(city);
         }
         const query = `
-            SELECT l.alltime_global_rank as global_rank, l.alltime_city_rank as city_rank,
+            SELECT ${rankField} as global_rank, ${cityRankField} as city_rank,
                    s.name, s.username,s.profile_image_url, c.city_name, b.year,
                    l.hard_solved, l.medium_solved, l.easy_solved,
                    l.current_streak, l.max_streak,
                    l.hard_solved + l.medium_solved + l.easy_solved AS total_solved,
                    b.hard_assigned, b.medium_assigned, b.easy_assigned,
-                   ROUND(
-                       (l.hard_solved::numeric / NULLIF(b.hard_assigned,0) * 20)*100 +
-                       (l.medium_solved::numeric / NULLIF(b.medium_assigned,0)*100 * 15) +
-                       (l.easy_solved::numeric / NULLIF(b.easy_assigned,0) * 10)*100, 2
-                   ) AS score,
+                 round(  (l.hard_solved::numeric / NULLIF(b.hard_assigned,0) * 2000) +
+                   (l.medium_solved::numeric / NULLIF(b.medium_assigned,0) * 1500) +
+                   (l.easy_solved::numeric / NULLIF(b.easy_assigned,0) * 1000), 2) AS score
             FROM "Leaderboard" l
             JOIN "Student" s ON s.id = l.student_id
             JOIN "Batch" b ON b.id = s.batch_id

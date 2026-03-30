@@ -26,6 +26,8 @@ exports.getClassesByTopic = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
         return res.json(classes);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -52,6 +54,8 @@ exports.createClassInTopic = (0, asyncHandler_1.asyncHandler)(async (req, res) =
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -74,6 +78,8 @@ exports.getClassDetails = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         return res.json(classDetails);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -100,6 +106,8 @@ exports.updateClass = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -124,6 +132,8 @@ exports.deleteClass = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -151,6 +161,8 @@ exports.getClassDetailsWithFullQuestions = (0, asyncHandler_1.asyncHandler)(asyn
         return res.json(classDetails);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(500, error.message || "Failed to fetch class details");
     }
 });

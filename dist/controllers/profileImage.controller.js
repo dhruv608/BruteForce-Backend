@@ -25,6 +25,8 @@ exports.uploadProfileImage = (0, asyncHandler_1.asyncHandler)(async (req, res) =
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error('Upload profile image error:', error);
         throw new ApiError_1.ApiError(500, error instanceof Error ? error.message : 'Failed to upload profile image');
     }
@@ -42,6 +44,8 @@ exports.deleteProfileImage = (0, asyncHandler_1.asyncHandler)(async (req, res) =
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error('Delete profile image error:', error);
         throw new ApiError_1.ApiError(500, error instanceof Error ? error.message : 'Failed to delete profile image');
     }

@@ -9,6 +9,7 @@ const student_service_2 = require("../services/student.service");
 const student_service_3 = require("../services/student.service");
 const prisma_1 = __importDefault(require("../config/prisma"));
 const asyncHandler_1 = require("../utils/asyncHandler");
+const ApiError_1 = require("../utils/ApiError");
 exports.getCurrentStudent = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     try {
         const studentId = req.user?.id;
@@ -59,6 +60,8 @@ exports.getCurrentStudent = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error("Get current student error:", error);
         return res.status(500).json({
             success: false,
@@ -76,6 +79,8 @@ exports.updateStudentDetails = (0, asyncHandler_1.asyncHandler)(async (req, res)
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         if (error.message === "Student not found") {
             return res.status(404).json({ message: error.message });
         }
@@ -100,6 +105,8 @@ exports.deleteStudentDetails = (0, asyncHandler_1.asyncHandler)(async (req, res)
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         if (error.message === "Student not found") {
             return res.status(404).json({ message: error.message });
         }
@@ -115,6 +122,8 @@ exports.getAllStudentsController = (0, asyncHandler_1.asyncHandler)(async (req, 
         return res.status(200).json(result);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         return res.status(500).json({
             message: "Failed to fetch students",
             error: error.message
@@ -129,6 +138,8 @@ exports.getStudentReportController = (0, asyncHandler_1.asyncHandler)(async (req
         return res.status(200).json(result);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         return res.status(500).json({
             message: "Failed to fetch student report",
             error: error.message
@@ -144,6 +155,8 @@ exports.createStudentController = (0, asyncHandler_1.asyncHandler)(async (req, r
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         return res.status(400).json({
             message: error.message
         });
@@ -164,6 +177,8 @@ exports.addStudentProgressController = (0, asyncHandler_1.asyncHandler)(async (r
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         return res.status(400).json({
             message: error.message
         });

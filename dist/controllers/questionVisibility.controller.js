@@ -49,6 +49,8 @@ exports.assignQuestionsToClass = (0, asyncHandler_1.asyncHandler)(async (req, re
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -83,6 +85,8 @@ exports.getAssignedQuestionsOfClass = (0, asyncHandler_1.asyncHandler)(async (re
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -116,6 +120,8 @@ exports.removeQuestionFromClass = (0, asyncHandler_1.asyncHandler)(async (req, r
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -149,6 +155,8 @@ exports.getAllQuestionsWithFilters = (0, asyncHandler_1.asyncHandler)(async (req
         return res.json(questions);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(500, error.message || "Failed to fetch questions");
     }
 });

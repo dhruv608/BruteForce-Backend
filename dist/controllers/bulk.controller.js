@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.bulkStudentUploadController = void 0;
 const bulk_service_1 = require("../services/bulk.service");
 const asyncHandler_1 = require("../utils/asyncHandler");
+const ApiError_1 = require("../utils/ApiError");
 exports.bulkStudentUploadController = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     try {
         if (!req.file) {
@@ -24,6 +25,8 @@ exports.bulkStudentUploadController = (0, asyncHandler_1.asyncHandler)(async (re
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         res.status(500).json({
             message: "Bulk upload failed",
             error: error.message || "Unknown error"

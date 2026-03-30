@@ -7,9 +7,10 @@ export function startSyncJob() {
   console.log("Sync cron job started");
   
   //  Combined sync job: Student Progress FIRST, then Leaderboard
-  cron.schedule("0 */4 * * *", async () => {
+  // cron.schedule("0 */4 * * *", async () => {
   // cron.schedule("* * * * *", async () => {
-
+cron.schedule("0 9,18,23 * * *", async () => {
+// Runs: 9:00 AM, 18:00 (6 PM), 23:00 (11 PM)
     const maxRetries = 3;
     let attempt = 0;
     

@@ -108,7 +108,6 @@ exports.updateStudentProfile = (0, asyncHandler_1.asyncHandler)(async (req, res)
         }
     }
     catch (error) {
-        console.error('Update profile error:', error);
         if (error instanceof ApiError_1.ApiError)
             throw error;
         // Handle unique constraint errors

@@ -7,12 +7,12 @@ exports.optionalAuth = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = __importDefault(require("../config/prisma"));
 const optionalAuth = async (req, res, next) => {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+        // No token provided, continue without authentication
+        return next();
+    }
     try {
-        const token = req.header('Authorization')?.replace('Bearer ', '');
-        if (!token) {
-            // No token provided, continue without authentication
-            return next();
-        }
         // Verify token
         const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
         // Get user from database

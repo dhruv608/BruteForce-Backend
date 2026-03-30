@@ -19,6 +19,7 @@ router.get("/me", superadminStats_controller_1.getCurrentSuperAdminController);
 // ===== CITY =====
 router.post("/cities", city_controller_1.createCity);
 router.get("/cities", city_controller_1.getAllCities);
+router.patch("/cities/:id", city_controller_1.updateCity);
 router.delete("/cities/:id", city_controller_1.deleteCity);
 // ===== BATCH =====
 router.get("/batches", batch_controller_1.getAllBatches);

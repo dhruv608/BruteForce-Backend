@@ -7,6 +7,7 @@ exports.getLeaderboardByType = exports.getLeaderboardPost = exports.getStudentLe
 const leaderboard_service_1 = require("../services/leaderboard.service");
 const prisma_1 = __importDefault(require("../config/prisma"));
 const asyncHandler_1 = require("../utils/asyncHandler");
+const ApiError_1 = require("../utils/ApiError");
 // Get available years for leaderboard filters
 exports.getAvailableYearsController = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     try {
@@ -17,6 +18,8 @@ exports.getAvailableYearsController = (0, asyncHandler_1.asyncHandler)(async (re
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error("Error fetching available years:", error);
         return res.status(500).json({
             success: false,
@@ -89,6 +92,8 @@ exports.getAdminLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res) 
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error("Admin leaderboard error:", error);
         return res.status(500).json({
             success: false,
@@ -107,19 +112,18 @@ exports.getStudentLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res
                 message: "Student ID not found in request."
             });
         }
-        // Step 2 — Read filters from request body or query params
+        // Step 2 — Get filters from request body
         const body = req.body || {};
-        const { city, type, year } = body;
-        // Step 3 — Read query params (optional username search)
-        const { username } = req.query;
-        // Step 4 — Get student's batch year for validation
+        const { city, type, year, username } = body;
+        // Step 3 — Get student details
         const student = await prisma_1.default.student.findUnique({
             where: { id: studentId },
             include: {
+                city: {
+                    select: { city_name: true }
+                },
                 batch: {
-                    select: {
-                        year: true
-                    }
+                    select: { year: true }
                 }
             }
         });
@@ -129,17 +133,17 @@ exports.getStudentLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res
                 message: "Student not found."
             });
         }
-        // Step 5 — Prepare filters
+        // Step 4 — Prepare filters
         const filters = {
             type: type || 'all',
             city: city || 'all',
             year: year || student.batch?.year || new Date().getFullYear()
         };
-        // Step 6 — Fetch Top 10 using shared service with limit 10
+        // Step 5 — Fetch Top 10 using shared service with limit 10
         const pagination = { page: 1, limit: 10 };
         let search = username;
         const top10Result = await (0, leaderboard_service_1.getLeaderboardWithPagination)(filters, pagination, search);
-        // Step 8 — Format top10 leaderboard with explicitly requested data mapping
+        // Step 6 — Format top10 leaderboard with explicitly requested data mapping
         const formattedTop10 = top10Result.leaderboard.map(entry => {
             // Determine which rank fields to use based on type
             let globalRank, cityRank;
@@ -170,9 +174,9 @@ exports.getStudentLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res
                 city_rank: cityRank
             };
         });
-        // Step 9 — Get logged-in student's rank using direct query
+        // Step 7 — Get logged-in student's rank using direct query
         const studentEntry = await (0, leaderboard_service_1.getStudentRankDirect)(studentId, filters);
-        // Step 10 — Prepare yourRank response with simplified data
+        // Step 8 — Prepare yourRank response with simplified data
         let yourRank = null;
         let rankMessage = null;
         if (studentEntry) {
@@ -189,11 +193,11 @@ exports.getStudentLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res
                 city_name: studentEntry.city_name,
                 max_streak: studentEntry.max_streak,
                 score: studentEntry.score,
-                easy_solved: 0,
-                medium_solved: 0,
-                hard_solved: 0,
+                easy_solved: studentEntry.easy_solved,
+                medium_solved: studentEntry.medium_solved,
+                hard_solved: studentEntry.hard_solved,
                 total_solved: studentEntry.total_solved,
-                total_assigned: 0
+                total_assigned: (studentEntry.hard_assigned || 0) + (studentEntry.medium_assigned || 0) + (studentEntry.easy_assigned || 0)
             };
         }
         else {
@@ -222,6 +226,8 @@ exports.getStudentLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error("Student leaderboard error:", error);
         return res.status(500).json({
             success: false,
@@ -248,6 +254,8 @@ exports.getLeaderboardPost = (0, asyncHandler_1.asyncHandler)(async (req, res) =
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error(error);
         return res.status(500).json({
             success: false,
@@ -345,7 +353,7 @@ exports.getLeaderboardByType = (0, asyncHandler_1.asyncHandler)(async (req, res)
                 city_rank: studentEntry.alltime_city_rank,
                 score: studentEntry.score,
                 max_streak: studentEntry.max_streak,
-                total_solved: studentEntry.total_solved
+                total_solved: studentEntry.total_solved,
             },
             problem_solving_stats: {
                 total_questions_solved: totalSolved,
@@ -368,6 +376,8 @@ exports.getLeaderboardByType = (0, asyncHandler_1.asyncHandler)(async (req, res)
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error(error);
         return res.status(500).json({
             success: false,

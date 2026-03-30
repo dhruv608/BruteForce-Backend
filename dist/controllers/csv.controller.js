@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.downloadBatchReportController = void 0;
 const csv_service_1 = require("../services/csv.service");
 const asyncHandler_1 = require("../utils/asyncHandler");
+const ApiError_1 = require("../utils/ApiError");
 exports.downloadBatchReportController = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     try {
         const { batch_id } = req.body;
@@ -24,6 +25,8 @@ exports.downloadBatchReportController = (0, asyncHandler_1.asyncHandler)(async (
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error("Download batch report error:", error);
         // Handle different error types
         if (error instanceof Error) {

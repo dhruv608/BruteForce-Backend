@@ -8,17 +8,14 @@ const prisma_1 = __importDefault(require("../config/prisma"));
 const client_1 = require("@prisma/client");
 const admin_service_1 = require("../services/admin.service");
 const asyncHandler_1 = require("../utils/asyncHandler");
+const ApiError_1 = require("../utils/ApiError");
 exports.getCurrentAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     try {
         // Get admin info from middleware (extracted from token)
         const adminInfo = req.admin;
         if (!adminInfo) {
-            return res.status(401).json({
-                success: false,
-                message: "Admin not authenticated"
-            });
+            throw new ApiError_1.ApiError(401, "Admin not authenticated", [], "AUTH_ERROR");
         }
-        //Ading line
         // Get full admin details from database
         const admin = await prisma_1.default.admin.findUnique({
             where: { id: adminInfo.id },
@@ -45,10 +42,7 @@ exports.getCurrentAdminController = (0, asyncHandler_1.asyncHandler)(async (req,
             }
         });
         if (!admin) {
-            return res.status(404).json({
-                success: false,
-                message: "Admin not found"
-            });
+            throw new ApiError_1.ApiError(404, "Admin not found", [], "ADMIN_NOT_FOUND");
         }
         return res.status(200).json({
             success: true,
@@ -65,11 +59,9 @@ exports.getCurrentAdminController = (0, asyncHandler_1.asyncHandler)(async (req,
         });
     }
     catch (error) {
-        console.error("Get current admin error:", error);
-        return res.status(500).json({
-            success: false,
-            message: error instanceof Error ? error.message : "Failed to fetch current admin"
-        });
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
+        throw new ApiError_1.ApiError(500, "Failed to fetch current admin", [], "SERVER_ERROR");
     }
 });
 exports.getAdminStats = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
@@ -77,10 +69,7 @@ exports.getAdminStats = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         const { batch_id } = req.body;
         // Validate batch_id
         if (!batch_id || isNaN(parseInt(batch_id))) {
-            return res.status(400).json({
-                success: false,
-                message: "Valid batch_id is required"
-            });
+            throw new ApiError_1.ApiError(400, "Valid batch_id is required", [], "VALIDATION_ERROR");
         }
         const batchId = parseInt(batch_id);
         // Check if batch exists
@@ -95,10 +84,7 @@ exports.getAdminStats = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
             }
         });
         if (!batch) {
-            return res.status(404).json({
-                success: false,
-                message: "Batch not found"
-            });
+            throw new ApiError_1.ApiError(404, "Batch not found", [], "BATCH_NOT_FOUND");
         }
         // Get total classes for this batch
         const totalClasses = await prisma_1.default.class.count({
@@ -172,11 +158,9 @@ exports.getAdminStats = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
-        console.error("Batch stats error:", error);
-        return res.status(500).json({
-            success: false,
-            message: error instanceof Error ? error.message : "Failed to fetch batch statistics"
-        });
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
+        throw new ApiError_1.ApiError(500, "Failed to fetch batch statistics", [], "SERVER_ERROR");
     }
 });
 exports.createAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
@@ -184,10 +168,7 @@ exports.createAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res
         const adminData = req.body;
         // Validate required fields (removed username)
         if (!adminData.name || !adminData.email || !adminData.password) {
-            return res.status(400).json({
-                success: false,
-                message: "Missing required fields: name, email, password"
-            });
+            throw new ApiError_1.ApiError(400, "Missing required fields: name, email, password", [], "VALIDATION_ERROR");
         }
         const newAdmin = await (0, admin_service_1.createAdminService)(adminData);
         return res.status(201).json({
@@ -197,11 +178,9 @@ exports.createAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res
         });
     }
     catch (error) {
-        console.error("Create admin error:", error);
-        return res.status(400).json({
-            success: false,
-            message: error instanceof Error ? error.message : "Failed to create admin"
-        });
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
+        throw new ApiError_1.ApiError(400, "Failed to create admin", [], "ADMIN_CREATE_ERROR");
     }
 });
 exports.getAllAdminsController = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
@@ -218,11 +197,9 @@ exports.getAllAdminsController = (0, asyncHandler_1.asyncHandler)(async (req, re
         });
     }
     catch (error) {
-        console.error("Get admins error:", error);
-        return res.status(500).json({
-            success: false,
-            message: error instanceof Error ? error.message : "Failed to fetch admins"
-        });
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
+        throw new ApiError_1.ApiError(500, "Failed to fetch admins", [], "SERVER_ERROR");
     }
 });
 exports.updateAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
@@ -230,10 +207,7 @@ exports.updateAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res
         const { id } = req.params;
         const updateData = req.body;
         if (!id || isNaN(parseInt(id))) {
-            return res.status(400).json({
-                success: false,
-                message: "Valid admin ID is required"
-            });
+            throw new ApiError_1.ApiError(400, "Valid admin ID is required", [], "VALIDATION_ERROR");
         }
         const updatedAdmin = await (0, admin_service_1.updateAdminService)(parseInt(id), updateData);
         return res.status(200).json({
@@ -243,22 +217,18 @@ exports.updateAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res
         });
     }
     catch (error) {
-        console.error("Update admin error:", error);
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         const statusCode = error.message === 'Admin not found' ? 404 : 400;
-        return res.status(statusCode).json({
-            success: false,
-            message: error.message || "Failed to update admin"
-        });
+        const errorCode = error.message === 'Admin not found' ? 'ADMIN_NOT_FOUND' : 'ADMIN_UPDATE_ERROR';
+        throw new ApiError_1.ApiError(statusCode, error.message || "Failed to update admin", [], errorCode);
     }
 });
 exports.deleteAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     try {
         const { id } = req.params;
         if (!id || isNaN(parseInt(id))) {
-            return res.status(400).json({
-                success: false,
-                message: "Valid admin ID is required"
-            });
+            throw new ApiError_1.ApiError(400, "Valid admin ID is required", [], "VALIDATION_ERROR");
         }
         const result = await (0, admin_service_1.deleteAdminService)(parseInt(id));
         return res.status(200).json({
@@ -267,12 +237,11 @@ exports.deleteAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res
         });
     }
     catch (error) {
-        console.error("Delete admin error:", error);
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         const statusCode = error.message === 'Admin not found' ? 404 : 500;
-        return res.status(statusCode).json({
-            success: false,
-            message: error.message || "Failed to delete admin"
-        });
+        const errorCode = error.message === 'Admin not found' ? 'ADMIN_NOT_FOUND' : 'ADMIN_DELETE_ERROR';
+        throw new ApiError_1.ApiError(statusCode, error.message || "Failed to delete admin", [], errorCode);
     }
 });
 exports.getRolesController = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
@@ -284,10 +253,8 @@ exports.getRolesController = (0, asyncHandler_1.asyncHandler)(async (req, res) =
         });
     }
     catch (error) {
-        console.error("Get roles error:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Failed to fetch roles"
-        });
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
+        throw new ApiError_1.ApiError(500, "Failed to fetch roles", [], "SERVER_ERROR");
     }
 });

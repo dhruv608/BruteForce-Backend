@@ -15,6 +15,8 @@ exports.createCity = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -31,6 +33,8 @@ exports.getAllCities = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         return res.json(cities);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(500, "Failed to fetch cities");
     }
 });
@@ -49,6 +53,8 @@ exports.updateCity = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });
@@ -63,6 +69,8 @@ exports.deleteCity = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         throw new ApiError_1.ApiError(400, error.message);
     }
 });

@@ -63,7 +63,7 @@ router.post("/bulk-operations", upload_middleware_1.upload.single("file"), bulk_
 router.post("/stats", admin_controller_1.getAdminStats);
 // Roles
 router.get("/roles", admin_controller_1.getRolesController);
-router.post("/leaderboard", auth_middleware_1.verifyToken, role_middleware_1.isAdmin, leaderboard_controller_1.getAdminLeaderboard); // Single admin leaderboard with pagination and search
+router.post("/leaderboard", leaderboard_controller_1.getAdminLeaderboard); // Single admin leaderboard with pagination and search
 router.patch("/students/:id", role_middleware_1.isTeacherOrAbove, role_middleware_1.isAdmin, student_controller_1.updateStudentDetails);
 // Delete (Hard Delete)
 router.delete("/students/:id", role_middleware_1.isTeacherOrAbove, role_middleware_1.isAdmin, student_controller_1.deleteStudentDetails);

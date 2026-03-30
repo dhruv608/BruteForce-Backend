@@ -54,6 +54,8 @@ exports.updateStudentProfile = (0, asyncHandler_1.asyncHandler)(async (req, res)
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         // Handle unique constraint errors
         if (error.code === "P2002") {
             const field = error.meta?.target;

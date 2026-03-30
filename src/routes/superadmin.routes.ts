@@ -6,6 +6,7 @@ import { extractAdminInfo } from "../middlewares/admin.middleware";
 import { 
   createCity, 
   getAllCities, 
+  updateCity,
   deleteCity
 } from "../controllers/city.controller";
 
@@ -34,6 +35,7 @@ router.get("/me", getCurrentSuperAdminController);
 
 router.post("/cities", createCity);
 router.get("/cities", getAllCities);
+router.patch("/cities/:id", updateCity);
 router.delete("/cities/:id", deleteCity);
 
 

@@ -26,6 +26,8 @@ exports.uploadTestFile = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error('Upload controller error:', error);
         throw new ApiError_1.ApiError(500, error instanceof Error ? error.message : 'Failed to upload file');
     }
@@ -45,6 +47,8 @@ exports.testS3Connection = (0, asyncHandler_1.asyncHandler)(async (req, res) => 
         });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error('S3 test error:', error);
         throw new ApiError_1.ApiError(500, 'S3 configuration test failed');
     }

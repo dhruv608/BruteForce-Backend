@@ -137,7 +137,15 @@ const getAllStudentsService = async (query) => {
         };
     }
     catch (error) {
-        throw new ApiError_1.ApiError(400, "Failed to fetch students");
+        if (error instanceof client_1.Prisma.PrismaClientKnownRequestError) {
+            if (error.code === "P2002") {
+                throw new ApiError_1.ApiError(400, "Duplicate entry found", [], "DUPLICATE_ENTRY");
+            }
+            if (error.code === "P2025") {
+                throw new ApiError_1.ApiError(404, "Record not found", [], "NOT_FOUND_ERROR");
+            }
+        }
+        throw new ApiError_1.ApiError(500, "Failed to fetch students", [], "SERVER_ERROR");
     }
 };
 exports.getAllStudentsService = getAllStudentsService;
@@ -314,7 +322,12 @@ const getStudentReportService = async (username) => {
         };
     }
     catch (error) {
-        throw new ApiError_1.ApiError(400, "Failed to fetch student report");
+        if (error instanceof client_1.Prisma.PrismaClientKnownRequestError) {
+            if (error.code === "P2025") {
+                throw new ApiError_1.ApiError(404, "Student not found");
+            }
+        }
+        throw new ApiError_1.ApiError(500, "Failed to fetch student report");
     }
 };
 exports.getStudentReportService = getStudentReportService;
@@ -337,6 +350,9 @@ const updateStudentDetailsService = async (id, body) => {
     }
     catch (error) {
         if (error instanceof client_1.Prisma.PrismaClientKnownRequestError) {
+            if (error.code === "P2025") {
+                throw new ApiError_1.ApiError(404, "Student not found");
+            }
             if (error.code === "P2002") {
                 throw new ApiError_1.ApiError(400, "Email, Username or Enrollment ID already exists");
             }
@@ -344,7 +360,7 @@ const updateStudentDetailsService = async (id, body) => {
                 throw new ApiError_1.ApiError(400, "Invalid city or batch reference");
             }
         }
-        throw new ApiError_1.ApiError(400, "Failed to update student");
+        throw new ApiError_1.ApiError(500, "Failed to update student");
     }
 };
 exports.updateStudentDetailsService = updateStudentDetailsService;
@@ -365,7 +381,12 @@ const deleteStudentDetailsService = async (id) => {
         return true;
     }
     catch (error) {
-        throw new ApiError_1.ApiError(400, "Failed to delete student");
+        if (error instanceof client_1.Prisma.PrismaClientKnownRequestError) {
+            if (error.code === "P2025") {
+                throw new ApiError_1.ApiError(404, "Student not found");
+            }
+        }
+        throw new ApiError_1.ApiError(500, "Failed to delete student");
     }
 };
 exports.deleteStudentDetailsService = deleteStudentDetailsService;

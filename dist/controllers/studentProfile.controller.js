@@ -14,6 +14,8 @@ exports.getStudentProfile = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
         res.json(profile);
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error("Profile error:", error);
         throw new ApiError_1.ApiError(500, error instanceof Error ? error.message : "Failed to get student profile");
     }
@@ -31,6 +33,8 @@ exports.getPublicStudentProfile = (0, asyncHandler_1.asyncHandler)(async (req, r
         res.json({ ...profile, canEdit });
     }
     catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
         console.error("Public profile error:", error);
         throw new ApiError_1.ApiError(500, error instanceof Error ? error.message : "Failed to get public student profile");
     }

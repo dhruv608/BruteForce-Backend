@@ -9,13 +9,13 @@ const slug_1 = require("../utils/slug");
 const ApiError_1 = require("../utils/ApiError");
 const createBatchService = async ({ batch_name, year, city_id, }) => {
     if (!batch_name || !year || !city_id) {
-        throw new ApiError_1.ApiError(400, "All fields are required");
+        throw new ApiError_1.ApiError(400, "All fields are required", [], "REQUIRED_FIELD");
     }
     const city = await prisma_1.default.city.findUnique({
         where: { id: city_id },
     });
     if (!city) {
-        throw new ApiError_1.ApiError(400, "City not found");
+        throw new ApiError_1.ApiError(404, "City not found");
     }
     // Prevent duplicate batch name + year in same city
     const duplicate = await prisma_1.default.batch.findFirst({
@@ -26,10 +26,10 @@ const createBatchService = async ({ batch_name, year, city_id, }) => {
         },
     });
     if (duplicate) {
-        throw new ApiError_1.ApiError(400, "Batch with same name and year already exists in this city");
+        throw new ApiError_1.ApiError(409, "Batch with same name and year already exists in this city");
     }
     if (!city.city_name) {
-        throw new ApiError_1.ApiError(400, "City name is missing");
+        throw new ApiError_1.ApiError(500, "City name is missing", [], "SERVER_ERROR");
     }
     const batch = await prisma_1.default.batch.create({
         data: {
@@ -86,7 +86,7 @@ const updateBatchService = async ({ id, batch_name, year, city_id, }) => {
         where: { id: finalCityId },
     });
     if (!city) {
-        throw new ApiError_1.ApiError(400, "City not found");
+        throw new ApiError_1.ApiError(404, "City not found", [], "CITY_NOT_FOUND");
     }
     // Prevent duplicate inside same city
     const duplicate = await prisma_1.default.batch.findFirst({
@@ -99,21 +99,6 @@ const updateBatchService = async ({ id, batch_name, year, city_id, }) => {
     });
     if (duplicate) {
         throw new ApiError_1.ApiError(400, "Batch with same name and year already exists in this city");
-    }
-    // Detect if relevant fields changed
-    const batchNameChanged = batch_name && batch_name !== existingBatch.batch_name;
-    const yearChanged = year && year !== existingBatch.year;
-    const cityIdChanged = city_id && city_id !== existingBatch.city_id;
-    const shouldRegenerateSlug = batchNameChanged || yearChanged || cityIdChanged;
-    // Prepare update data
-    const updateData = {
-        batch_name: finalBatchName,
-        year: finalYear,
-        city_id: finalCityId,
-    };
-    // Regenerate slug only if relevant fields changed
-    if (shouldRegenerateSlug) {
-        updateData.slug = (0, slug_1.generateBatchSlug)(city.city_name, finalBatchName, finalYear);
     }
     // Detect if relevant fields changed
     const batchNameChanged = batch_name && batch_name !== existingBatch.batch_name;

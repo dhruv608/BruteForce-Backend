@@ -221,7 +221,7 @@ export const getLeaderboardWithPagination = async (filters: any, pagination: any
             last_calculated: row.last_calculated
         }));
 
-        // 🆕 Get cities and years data with error handling
+        //  Get cities and years data with error handling
         let availableCities = [];
         let availableYears = [];
         

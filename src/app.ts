@@ -14,7 +14,7 @@ import superadminRoutes from './routes/superadmin.routes';
 import publicRoutes from './routes/public.routes';
 import userRoutes from './routes/user.routes';
 import { startSyncJob } from './jobs/sync.job';
-import s3Routes from './routes/s3.routes';
+
 dotenv.config();
 
 // Swagger UI Integration
@@ -33,9 +33,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-
-// S3 Routes 
-app.use('/api/s3', s3Routes);
 
 // Routes
 app.use('/api/auth', authRoutes);

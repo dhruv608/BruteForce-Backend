@@ -13,7 +13,6 @@ async function main() {
     console.log("Superadmin already exists:", existingSuperadmin.email);
     console.log("Login credentials:");
     console.log("Email:", existingSuperadmin.email);
-    console.log("Username:", existingSuperadmin.username);
     console.log("Password: 123456");
     return;
   }
@@ -24,7 +23,6 @@ async function main() {
     create: {
       name: "Dhruv",
       email: "superadmin@test.com",
-      username: "superadmin",
       password_hash,
       role: "SUPERADMIN",
     },
@@ -33,7 +31,6 @@ async function main() {
 
   console.log("✅ SuperAdmin created successfully!");
   console.log("📧 Email:", superadmin.email);
-  console.log("👤 Username:", superadmin.username);
   console.log("🔑 Password: 123456");
   console.log("🎯 Role:", superadmin.role);
   console.log("\n🔐 Login at: POST /api/auth/admin/login");

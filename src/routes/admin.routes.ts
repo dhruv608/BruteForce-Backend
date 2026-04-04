@@ -5,7 +5,7 @@ import { extractAdminInfo } from "../middlewares/admin.middleware";
 import { resolveBatch } from "../middlewares/batch.middleware";
 import {  getAllCities } from "../controllers/city.controller";
 import {  getAllBatches } from "../controllers/batch.controller";
-import { createTopic, deleteTopic, getAllTopics, getTopicsForBatch, updateTopic } from "../controllers/topic.controller";
+import { createTopic, deleteTopic, getAllTopics, getTopicsForBatch, updateTopic, createTopicsBulk, bulkTestUploadQuestions } from "../controllers/topic.controller";
 import { createQuestion, deleteQuestion, getAllQuestions, getAssignedQuestionsController, updateQuestion } from "../controllers/question.controller";
 import { bulkUploadQuestions } from "../controllers/questionBulk.controller";
 import { uploadImage } from "../middlewares/imageUpload.middleware";
@@ -42,6 +42,13 @@ router.put("/topics/:topicSlug", isTeacherOrAbove, uploadImage.single('photo'), 
 router.patch("/topics/:topicSlug", isTeacherOrAbove, uploadImage.single('photo'), updateTopic);
 router.delete("/topics/:topicSlug", isTeacherOrAbove, deleteTopic);
 
+// Bulk Operation for Topics
+router.post("/topics/bulk-upload", isTeacherOrAbove, createTopicsBulk);
+
+
+// Bulk Test Upload Questions contain topic slug
+router.post("/bulkTestUpload", isTeacherOrAbove, upload.single("file"), bulkTestUploadQuestions);
+
 // questions gloabal 
 router.post("/questions", isTeacherOrAbove, createQuestion);
 
@@ -69,7 +76,7 @@ router.post(
 // Download Batch Report
 router.post("/student/reportdownload", downloadBatchReportController);
 
-// Bulk Operation for Studenta 
+// Bulk Operation for Student 
 router.post(
   "/bulk-operations",
   upload.single("file"),

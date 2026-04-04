@@ -1,13 +1,9 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.addStudentProgressController = exports.createStudentController = exports.getStudentReportController = exports.getAllStudentsController = exports.deleteStudentDetails = exports.updateStudentDetails = exports.getCurrentStudent = void 0;
 const student_service_1 = require("../services/student.service");
 const student_service_2 = require("../services/student.service");
 const student_service_3 = require("../services/student.service");
-const prisma_1 = __importDefault(require("../config/prisma"));
 const asyncHandler_1 = require("../utils/asyncHandler");
 const ApiError_1 = require("../utils/ApiError");
 exports.getCurrentStudent = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
@@ -15,34 +11,7 @@ exports.getCurrentStudent = (0, asyncHandler_1.asyncHandler)(async (req, res) =>
     if (!studentId) {
         throw new ApiError_1.ApiError(401, "Student not authenticated", [], "UNAUTHORIZED");
     }
-    const student = await prisma_1.default.student.findUnique({
-        where: { id: studentId },
-        select: {
-            id: true,
-            name: true,
-            username: true,
-            city: {
-                select: {
-                    id: true,
-                    city_name: true
-                }
-            },
-            batch: {
-                select: {
-                    id: true,
-                    batch_name: true,
-                    year: true
-                }
-            },
-            email: true,
-            profile_image_url: true,
-            leetcode_id: true,
-            gfg_id: true
-        }
-    });
-    if (!student) {
-        throw new ApiError_1.ApiError(404, "Student not found", [], "STUDENT_NOT_FOUND");
-    }
+    const student = await (0, student_service_1.getCurrentStudentService)(studentId);
     return res.status(200).json({
         success: true,
         data: {

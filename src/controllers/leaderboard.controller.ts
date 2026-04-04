@@ -27,14 +27,13 @@ export const getAdminLeaderboard = asyncHandler(async (req: Request, res: Respon
     try {
         // Step 1 — Read filters from request body
         const body = req.body || {};
-        const { city, type, year } = body;
+        const { city, year } = body;
         
         // Step 2 — Read query params for pagination and search
         const { page = 1, limit = 10, search } = req.query;
         
         // Step 3 — Prepare filters
         const filters = {
-            type: type || 'all',
             city: city || 'all', 
             year: year || new Date().getFullYear()
         };
@@ -48,24 +47,8 @@ export const getAdminLeaderboard = asyncHandler(async (req: Request, res: Respon
         // Step 5 — Use optimized service
         const result = await getLeaderboardWithPagination(filters, pagination, search as string);
         
-        // Step 6 — Format leaderboard with explicitly requested data mapping
+        // Step 6 — Format leaderboard with all-time rankings
         const formattedLeaderboard = result.leaderboard.map(entry => {
-            // Determine which rank fields to use based on type
-            let globalRank, cityRank;
-            switch(filters.type) {
-                case 'weekly':
-                    globalRank = entry.weekly_global_rank;
-                    cityRank = entry.weekly_city_rank;
-                    break;
-                case 'monthly':
-                    globalRank = entry.monthly_global_rank;
-                    cityRank = entry.monthly_city_rank;
-                    break;
-                default: // 'all' or 'alltime'
-                    globalRank = entry.alltime_global_rank;
-                    cityRank = entry.alltime_city_rank;
-            }
-            
             return {
                 student_id: entry.student_id,
                 name: entry.name,
@@ -76,8 +59,8 @@ export const getAdminLeaderboard = asyncHandler(async (req: Request, res: Respon
                 max_streak: entry.max_streak || 0,
                 total_solved: Number(entry.total_solved || 0),
                 score: Number(entry.score || 0),
-                global_rank: globalRank,
-                city_rank: cityRank
+                global_rank: entry.alltime_global_rank,
+                city_rank: entry.alltime_city_rank
             };
         });
         
@@ -117,7 +100,7 @@ export const getStudentLeaderboard = asyncHandler(async (req: Request, res: Resp
                 
                 // Step 2 — Get filters from request body
                 const body = req.body || {};
-                const { city, type, year, username } = body;
+                const { city, year, username } = body;
                 
                 // Step 3 — Get student details
                 const student = await prisma.student.findUnique({
@@ -141,35 +124,18 @@ export const getStudentLeaderboard = asyncHandler(async (req: Request, res: Resp
                 
                 // Step 4 — Prepare filters
                 const filters = {
-                    type: type || 'all',
                     city: city || 'all',
                     year: year || student.batch?.year || new Date().getFullYear()
                 };
                 
                 // Step 5 — Fetch Top 10 using shared service with limit 10
                 const pagination = { page: 1, limit: 10 };
-                let search = username as string;
+                let search = username;
                 
                 const top10Result = await getLeaderboardWithPagination(filters, pagination, search);
         
         // Step 6 — Format top10 leaderboard with explicitly requested data mapping
                 const formattedTop10 = top10Result.leaderboard.map(entry => {
-                    // Determine which rank fields to use based on type
-                    let globalRank, cityRank;
-                    switch(filters.type) {
-                        case 'weekly':
-                            globalRank = entry.weekly_global_rank;
-                            cityRank = entry.weekly_city_rank;
-                            break;
-                        case 'monthly':
-                            globalRank = entry.monthly_global_rank;
-                            cityRank = entry.monthly_city_rank;
-                            break;
-                        default: // 'all' or 'alltime'
-                            globalRank = entry.alltime_global_rank;
-                            cityRank = entry.alltime_city_rank;
-                    }
-                    
                     return {
                         student_id: entry.student_id,
                         name: entry.name,
@@ -180,8 +146,8 @@ export const getStudentLeaderboard = asyncHandler(async (req: Request, res: Resp
                         max_streak: entry.max_streak || 0,
                         total_solved: Number(entry.total_solved || 0),
                         score: Number(entry.score || 0),
-                        global_rank: globalRank,
-                        city_rank: cityRank
+                        global_rank: entry.alltime_global_rank,
+                        city_rank: entry.alltime_city_rank
                     };
                 });
         
@@ -230,8 +196,7 @@ export const getStudentLeaderboard = asyncHandler(async (req: Request, res: Resp
                         message: rankMessage,
                         filters: {
                             city: filters.city,
-                            year: filters.year,
-                            type: filters.type
+                            year: filters.year
                         },
                         available_cities: top10Result.available_cities,
                         last_calculated: top10Result.last_calculated

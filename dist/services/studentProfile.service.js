@@ -63,17 +63,66 @@ const getStudentProfileService = async (studentId) => {
             },
             take: 5
         });
-        // 3️⃣ Heatmap
+        // 3️⃣ Enhanced Heatmap with Freeze Day Logic
+        const today = new Date();
+        const oneYearAgo = new Date(today);
+        oneYearAgo.setDate(oneYearAgo.getDate() - 365);
         const heatmap = await prisma_1.default.$queryRaw `
-      SELECT DATE(sync_at) as date, COUNT(*) as count
-      FROM "StudentProgress"
-      WHERE student_id = ${studentId}
-      GROUP BY DATE(sync_at)
-      ORDER BY date DESC
-    `;
+          WITH date_range AS (
+            SELECT generate_series(
+              DATE(${oneYearAgo.toISOString().split('T')[0]})::date,
+              DATE(${today.toISOString().split('T')[0]})::date,
+              '1 day'::interval
+            )::date as date
+          ),
+          student_submissions AS (
+            SELECT 
+              DATE(sync_at) as submission_date,
+              COUNT(*) as submission_count
+            FROM "StudentProgress"
+            WHERE student_id = ${studentId}
+              AND DATE(sync_at) >= DATE(${oneYearAgo.toISOString().split('T')[0]})
+            GROUP BY DATE(sync_at)
+          ),
+          question_availability AS (
+            SELECT 
+              dr.date,
+              COALESCE(ss.submission_count, 0) as submissions,
+              CASE 
+                WHEN EXISTS (
+                  SELECT 1 
+                  FROM "Question" q
+                  JOIN "Topic" t ON q.topic_id = t.id
+                  JOIN "Class" c ON t.id = c.topic_id
+                  WHERE DATE(q.created_at) = dr.date
+                    AND c.batch_id = ${student.batch_id}
+                    AND (
+                      ${student.city?.id} IS NULL 
+                      OR EXISTS (
+                        SELECT 1 FROM "City" city 
+                        WHERE city.id = ${student.city?.id}
+                      )
+                    )
+                ) THEN true
+                ELSE false
+              END as has_question
+            FROM date_range dr
+            LEFT JOIN student_submissions ss ON dr.date = ss.submission_date
+          )
+          SELECT 
+            date,
+            CASE 
+              WHEN NOT has_question AND submissions = 0 THEN -1  -- Freeze day with no submissions
+              WHEN NOT has_question AND submissions > 0 THEN submissions  -- Freeze day but student solved previous questions
+              WHEN has_question AND submissions = 0 THEN 0     -- Questions available but no submissions (streak break)
+              ELSE submissions                -- Actual submission count
+            END as count
+          FROM question_availability
+          ORDER BY date DESC
+        `;
         // 4️⃣ Get today's submission count and check if questions were uploaded today
-        const today = new Date().toISOString().split('T')[0];
-        const todaySubmission = heatmap.find((h) => h.date === today);
+        const todayStr = today.toISOString().split('T')[0];
+        const todaySubmission = heatmap.find((h) => h.date === todayStr);
         const count = todaySubmission ? Number(todaySubmission.count) : 0;
         // Check if any question was uploaded today for this student's batch + city
         const hasQuestion = await prisma_1.default.$queryRaw `
@@ -82,7 +131,7 @@ const getStudentProfileService = async (studentId) => {
         FROM "Question" q
         JOIN "Topic" t ON q.topic_id = t.id
         JOIN "Class" c ON t.id = c.topic_id
-        WHERE DATE(q.created_at) = ${today}
+        WHERE DATE(q.created_at) = ${todayStr}
         AND c.batch_id = ${student.batch_id}
         AND (
           ${student.city?.id} IS NULL 
@@ -209,11 +258,61 @@ const getPublicStudentProfileService = async (username) => {
         take: 5
     });
     const leaderboard = student.leaderboards;
+    // 3️⃣ Enhanced Heatmap with Freeze Day Logic
+    const today = new Date();
+    const oneYearAgo = new Date(today);
+    oneYearAgo.setDate(oneYearAgo.getDate() - 365);
     const heatmap = await prisma_1.default.$queryRaw `
-      SELECT DATE(sync_at) as date, COUNT(*) as count
-      FROM "StudentProgress"
-      WHERE student_id = ${studentId}
-      GROUP BY DATE(sync_at)
+      WITH date_range AS (
+        SELECT generate_series(
+          DATE(${oneYearAgo.toISOString().split('T')[0]})::date,
+          DATE(${today.toISOString().split('T')[0]})::date,
+          '1 day'::interval
+        )::date as date
+      ),
+      student_submissions AS (
+        SELECT 
+          DATE(sync_at) as submission_date,
+          COUNT(*) as submission_count
+        FROM "StudentProgress"
+        WHERE student_id = ${studentId}
+          AND DATE(sync_at) >= DATE(${oneYearAgo.toISOString().split('T')[0]})
+        GROUP BY DATE(sync_at)
+      ),
+      question_availability AS (
+        SELECT 
+          dr.date,
+          COALESCE(ss.submission_count, 0) as submissions,
+          CASE 
+            WHEN EXISTS (
+              SELECT 1 
+              FROM "Question" q
+              JOIN "Topic" t ON q.topic_id = t.id
+              JOIN "Class" c ON t.id = c.topic_id
+              WHERE DATE(q.created_at) = dr.date
+                AND c.batch_id = ${student.batch_id}
+                AND (
+                  ${student.city?.id} IS NULL 
+                  OR EXISTS (
+                    SELECT 1 FROM "City" city 
+                    WHERE city.id = ${student.city?.id}
+                  )
+                )
+            ) THEN true
+            ELSE false
+          END as has_question
+        FROM date_range dr
+        LEFT JOIN student_submissions ss ON dr.date = ss.submission_date
+      )
+      SELECT 
+        date,
+        CASE 
+          WHEN NOT has_question AND submissions = 0 THEN -1  -- Freeze day with no submissions
+          WHEN NOT has_question AND submissions > 0 THEN submissions  -- Freeze day but student solved previous questions
+          WHEN has_question AND submissions = 0 THEN 0     -- Questions available but no submissions (streak break)
+          ELSE submissions                -- Actual submission count
+        END as count
+      FROM question_availability
       ORDER BY date DESC
     `;
     return {

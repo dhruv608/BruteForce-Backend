@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getTopicOverviewWithClassesSummaryService = exports.getTopicsWithBatchProgressService = exports.deleteTopicService = exports.updateTopicService = exports.getTopicsForBatchService = exports.getAllTopicsService = exports.createTopicService = void 0;
+exports.getTopicProgressByUsernameService = exports.createTopicsBulkService = exports.getTopicOverviewWithClassesSummaryService = exports.getTopicsWithBatchProgressService = exports.deleteTopicService = exports.updateTopicService = exports.getTopicsForBatchService = exports.getAllTopicsService = exports.createTopicService = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const transliteration_1 = require("transliteration");
 const s3_service_1 = require("../services/s3.service");
@@ -564,3 +564,79 @@ const getTopicOverviewWithClassesSummaryService = async ({ studentId, batchId, t
     };
 };
 exports.getTopicOverviewWithClassesSummaryService = getTopicOverviewWithClassesSummaryService;
+const createTopicsBulkService = async (topics) => {
+    const created = await prisma_1.default.topic.createMany({
+        data: topics,
+        skipDuplicates: true, // ignore duplicates
+    });
+    return created;
+};
+exports.createTopicsBulkService = createTopicsBulkService;
+const getTopicProgressByUsernameService = async (username) => {
+    // Find the student by username
+    const student = await prisma_1.default.student.findUnique({
+        where: { username: username },
+        include: {
+            batch: true
+        }
+    });
+    if (!student) {
+        throw new ApiError_1.ApiError(404, "Student not found", [], "STUDENT_NOT_FOUND");
+    }
+    if (!student.batch_id) {
+        throw new ApiError_1.ApiError(400, "Student is not assigned to any batch", [], "NO_BATCH_ASSIGNED");
+    }
+    // Get student progress to calculate solved questions
+    const studentProgress = await prisma_1.default.studentProgress.findMany({
+        where: { student_id: student.id }
+    });
+    // Get all topics with their classes
+    const topics = await prisma_1.default.topic.findMany({
+        include: {
+            classes: {
+                where: {
+                    batch_id: student.batch_id
+                },
+                include: {
+                    questionVisibility: {
+                        include: {
+                            question: {
+                                select: {
+                                    level: true,
+                                    platform: true,
+                                    type: true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+    // Calculate progress for each topic (same logic as controller)
+    const topicsWithProgress = topics.map(topic => {
+        const topicClasses = topic.classes;
+        const totalQuestions = topicClasses.reduce((sum, classItem) => {
+            return sum + classItem.questionVisibility.length;
+        }, 0);
+        const solvedQuestions = studentProgress.filter(progress => {
+            return topicClasses.some(classItem => classItem.questionVisibility.some(qv => qv.question_id === progress.question_id));
+        }).length;
+        return {
+            ...topic,
+            totalQuestions,
+            solvedQuestions,
+            progressPercentage: totalQuestions > 0 ? Math.round((solvedQuestions / totalQuestions) * 100) : 0
+        };
+    });
+    return {
+        student: {
+            id: student.id,
+            name: student.name,
+            username: student.username,
+            batch: student.batch
+        },
+        topics: topicsWithProgress
+    };
+};
+exports.getTopicProgressByUsernameService = getTopicProgressByUsernameService;

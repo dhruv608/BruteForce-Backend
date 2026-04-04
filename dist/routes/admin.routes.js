@@ -18,25 +18,14 @@ const leaderboard_controller_1 = require("../controllers/leaderboard.controller"
 const questionVisibility_controller_1 = require("../controllers/questionVisibility.controller");
 const class_controller_1 = require("../controllers/class.controller");
 const progress_controller_1 = require("../controllers/progress.controller");
-const test_controller_1 = require("../controllers/test.controller");
 const student_controller_1 = require("../controllers/student.controller");
 const bulk_controller_1 = require("../controllers/bulk.controller");
-// import {
-//   getStudentsForBatch,
-//   getStudentReport,
-// } from "../controllers/admin/student.controller";
 const router = (0, express_1.Router)();
-/* ==========================================
-    GLOBAL PROTECTION
-========================================== */
 router.use(auth_middleware_1.verifyToken);
 router.use(role_middleware_1.isAdmin);
 router.use(admin_middleware_1.extractAdminInfo); // Add admin info extraction
 // Current Admin Info
 router.get("/me", admin_controller_1.getCurrentAdminController);
-/* ==========================================
-   GLOBAL ROUTES (NO BATCH CONTEXT)
-========================================== */
 // Cities
 router.get("/cities", city_controller_1.getAllCities);
 // Batches
@@ -47,7 +36,6 @@ router.post("/topics", role_middleware_1.isTeacherOrAbove, imageUpload_middlewar
 router.put("/topics/:topicSlug", role_middleware_1.isTeacherOrAbove, imageUpload_middleware_1.uploadImage.single('photo'), topic_controller_1.updateTopic);
 router.patch("/topics/:topicSlug", role_middleware_1.isTeacherOrAbove, imageUpload_middleware_1.uploadImage.single('photo'), topic_controller_1.updateTopic);
 router.delete("/topics/:topicSlug", role_middleware_1.isTeacherOrAbove, topic_controller_1.deleteTopic);
-//  WORKSPACE ROUTES (BATCH CONTEXT)
 // questions gloabal 
 router.post("/questions", role_middleware_1.isTeacherOrAbove, question_controller_1.createQuestion);
 router.get("/questions", question_controller_1.getAllQuestions);
@@ -71,8 +59,6 @@ router.get("/students", student_controller_1.getAllStudentsController);
 // router.get("/students/:username", getStudentReportController);
 router.post("/students", role_middleware_1.isAdmin, role_middleware_1.isTeacherOrAbove, student_controller_1.createStudentController);
 router.post("/students/progress", role_middleware_1.isTeacherOrAbove, role_middleware_1.isAdmin, student_controller_1.addStudentProgressController);
-router.get("/test/leetcode/:username", test_controller_1.testLeetcode);
-router.get("/test/gfg/:username", test_controller_1.testGfg);
 router.post("/students/sync/:id", progress_controller_1.manualSync);
 // Everything below requires valid batchSlug
 router.use("/:batchSlug", batch_middleware_1.resolveBatch);

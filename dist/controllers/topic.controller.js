@@ -1,13 +1,10 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getTopicProgressByUsername = exports.getTopicOverviewWithClassesSummary = exports.getTopicsWithBatchProgress = exports.createTopicsBulk = exports.deleteTopic = exports.updateTopic = exports.getTopicsForBatch = exports.getAllTopics = exports.createTopic = void 0;
-const prisma_1 = __importDefault(require("../config/prisma"));
+exports.getTopicProgressByUsername = exports.createTopicsBulk = exports.getTopicOverviewWithClassesSummary = exports.getTopicsWithBatchProgress = exports.deleteTopic = exports.updateTopic = exports.getTopicsForBatch = exports.getAllTopics = exports.createTopic = void 0;
 const topic_service_1 = require("../services/topic.service");
 const asyncHandler_1 = require("../utils/asyncHandler");
 const ApiError_1 = require("../utils/ApiError");
+const slugify_1 = require("../utils/slugify");
 exports.createTopic = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     console.log("Create Topic req.body:", req.body);
     const topic_name = req.body?.topic_name;
@@ -63,26 +60,6 @@ exports.deleteTopic = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
         message: "Topic deleted successfully",
     });
 });
-exports.createTopicsBulk = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const { topics } = req.body;
-    if (!topics || !Array.isArray(topics)) {
-        throw new ApiError_1.ApiError(400, "Topics must be an array", [], "INVALID_INPUT");
-    }
-    // Slug generate helper
-    const generateSlug = (name) => name.toLowerCase().trim().replace(/\s+/g, "-");
-    const formattedTopics = topics.map((topic_name) => ({
-        topic_name,
-        slug: generateSlug(topic_name),
-    }));
-    const created = await prisma_1.default.topic.createMany({
-        data: formattedTopics,
-        skipDuplicates: true, // ignore duplicates
-    });
-    return res.status(201).json({
-        message: "Topics uploaded successfully",
-        count: created.count,
-    });
-});
 // Student-specific controller - get topics with batch progress
 exports.getTopicsWithBatchProgress = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     // Get student info from middleware (extractStudentInfo)
@@ -118,78 +95,42 @@ exports.getTopicOverviewWithClassesSummary = (0, asyncHandler_1.asyncHandler)(as
     });
     return res.json(topicOverview);
 });
+exports.createTopicsBulk = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const { topics } = req.body;
+    if (!topics || !Array.isArray(topics)) {
+        throw new ApiError_1.ApiError(400, "Topics array is required", [], "REQUIRED_FIELD");
+    }
+    // Format topics with slugs
+    const formattedTopics = topics.map((topic) => ({
+        topic_name: topic.topic_name,
+        slug: (0, slugify_1.generateSlug)(topic.topic_name),
+    }));
+    const created = await (0, topic_service_1.createTopicsBulkService)(formattedTopics);
+    return res.status(201).json({
+        message: "Topics created successfully",
+        created: created,
+    });
+});
+// Update the getTopicProgressByUsername function:
 exports.getTopicProgressByUsername = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     const { username } = req.params;
     const { sortBy = 'solved' } = req.query;
-    // Find the student by username
-    const student = await prisma_1.default.student.findUnique({
-        where: { username: username },
-        include: {
-            batch: true
-        }
-    });
-    if (!student) {
-        throw new ApiError_1.ApiError(404, "Student not found", [], "STUDENT_NOT_FOUND");
+    // ✅ Add validation and type assertion
+    if (!username || Array.isArray(username)) {
+        throw new ApiError_1.ApiError(400, "Valid username is required", [], "REQUIRED_FIELD");
     }
-    // Get student progress to calculate solved questions
-    const studentProgress = await prisma_1.default.studentProgress.findMany({
-        where: { student_id: student.id }
-    });
-    // Get all topics with their classes
-    const topics = await prisma_1.default.topic.findMany({
-        include: {
-            classes: {
-                where: {
-                    batch_id: student.batch_id || undefined
-                },
-                include: {
-                    questionVisibility: true
-                }
-            }
-        }
-    });
-    // Calculate progress for each topic
-    const topicProgress = topics.map((topic) => {
-        let totalAssigned = 0;
-        let totalSolved = 0;
-        topic.classes.forEach((cls) => {
-            cls.questionVisibility.forEach((qv) => {
-                totalAssigned += 1;
-                // Check if student solved this question
-                const isSolved = studentProgress.some((sp) => sp.question_id === qv.question_id);
-                if (isSolved) {
-                    totalSolved += 1;
-                }
-            });
-        });
-        return {
-            id: topic.id,
-            topic_name: topic.topic_name,
-            slug: topic.slug,
-            photo_url: topic.photo_url,
-            totalAssigned,
-            totalSolved
-        };
-    });
-    // Sort topics based on query parameter
-    const sortedTopics = topicProgress.sort((a, b) => {
-        switch (sortBy) {
-            case 'name':
-                return a.topic_name.localeCompare(b.topic_name);
-            case 'assigned':
-                return b.totalAssigned - a.totalAssigned;
-            case 'solved':
-            default:
-                return b.totalSolved - a.totalSolved;
-        }
-    });
-    return res.json({
-        username,
-        studentName: student.name,
-        batchName: student.batch?.batch_name || 'Unknown',
+    const result = await (0, topic_service_1.getTopicProgressByUsernameService)(username);
+    // Sort topics based on sortBy parameter
+    let sortedTopics = result.topics;
+    if (sortBy === 'solved') {
+        sortedTopics.sort((a, b) => b.solvedQuestions - a.solvedQuestions);
+    }
+    else if (sortBy === 'progress') {
+        sortedTopics.sort((a, b) => b.progressPercentage - a.progressPercentage);
+    }
+    return res.status(200).json({
+        success: true,
+        student: result.student,
         topics: sortedTopics,
-        totalTopics: topics.length,
-        totalAssigned: topicProgress.reduce((sum, topic) => sum + topic.totalAssigned, 0),
-        totalSolved: topicProgress.reduce((sum, topic) => sum + topic.totalSolved, 0)
     });
 });

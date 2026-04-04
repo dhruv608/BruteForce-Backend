@@ -21,43 +21,19 @@ export const syncLeaderboardData = async () => {
       WITH student_solves_all AS (
         SELECT
           sp.student_id,
-          COUNT(*) FILTER (WHERE q.level='HARD')   AS hard_solved,
+          COUNT(*) FILTER (WHERE q.level='HARD') AS hard_solved,
           COUNT(*) FILTER (WHERE q.level='MEDIUM') AS medium_solved,
-          COUNT(*) FILTER (WHERE q.level='EASY')   AS easy_solved,
+          COUNT(*) FILTER (WHERE q.level='EASY') AS easy_solved,
           COUNT(*) AS total_solved
         FROM "StudentProgress" sp
         JOIN "Question" q ON q.id = sp.question_id
-        GROUP BY sp.student_id
-      ),
-            student_solves_weekly AS (
-        SELECT
-          sp.student_id,
-          COUNT(*) FILTER (WHERE q.level='HARD')   AS hard_solved_weekly,
-          COUNT(*) FILTER (WHERE q.level='MEDIUM') AS medium_solved_weekly,
-          COUNT(*) FILTER (WHERE q.level='EASY')   AS easy_solved_weekly,
-          COUNT(*) AS total_solved_weekly
-        FROM "StudentProgress" sp
-        JOIN "Question" q ON q.id = sp.question_id
-        WHERE sp.sync_at >= date_trunc('week', now() - interval '1 day')
-        GROUP BY sp.student_id
-      ),
-      student_solves_monthly AS (
-        SELECT
-          sp.student_id,
-          COUNT(*) FILTER (WHERE q.level='HARD')   AS hard_solved_monthly,
-          COUNT(*) FILTER (WHERE q.level='MEDIUM') AS medium_solved_monthly,
-          COUNT(*) FILTER (WHERE q.level='EASY')   AS easy_solved_monthly,
-          COUNT(*) AS total_solved_monthly
-        FROM "StudentProgress" sp
-        JOIN "Question" q ON q.id = sp.question_id
-        WHERE sp.sync_at >= date_trunc('month', now())
         GROUP BY sp.student_id
       ),
       
       student_activity_dates AS (
         SELECT
           sp.student_id,
-          array_agg(DATE(sp.sync_at) ORDER BY sp.sync_at DESC) AS activity_dates
+          ARRAY_AGG(DISTINCT DATE(sp.sync_at)) AS activity_dates
         FROM "StudentProgress" sp
         GROUP BY sp.student_id
       ),
@@ -84,18 +60,6 @@ export const syncLeaderboardData = async () => {
           COALESCE(ss_all.easy_solved,0) AS easy_solved,
           COALESCE(ss_all.total_solved,0) AS total_solved,
           
-          -- Weekly counts
-          COALESCE(ss_weekly.hard_solved_weekly,0) AS hard_solved_weekly,
-          COALESCE(ss_weekly.medium_solved_weekly,0) AS medium_solved_weekly,
-          COALESCE(ss_weekly.easy_solved_weekly,0) AS easy_solved_weekly,
-          COALESCE(ss_weekly.total_solved_weekly,0) AS total_solved_weekly,
-          
-          -- Monthly counts
-          COALESCE(ss_monthly.hard_solved_monthly,0) AS hard_solved_monthly,
-          COALESCE(ss_monthly.medium_solved_monthly,0) AS medium_solved_monthly,
-          COALESCE(ss_monthly.easy_solved_monthly,0) AS easy_solved_monthly,
-          COALESCE(ss_monthly.total_solved_monthly,0) AS total_solved_monthly,
-          
           -- Activity dates for streak calculation
           COALESCE(ad.activity_dates, ARRAY[]::DATE[]) AS activity_dates,
           
@@ -117,31 +81,17 @@ export const syncLeaderboardData = async () => {
           ROUND((COALESCE(ss_all.medium_solved,0)::numeric / NULLIF(b.medium_assigned,0) * 100), 2) AS medium_completion,
           ROUND((COALESCE(ss_all.easy_solved,0)::numeric / NULLIF(b.easy_assigned,0) * 100), 2) AS easy_completion,
           
-          -- Calculate scores for different time periods
+          -- Calculate all-time score
           ROUND(
             (COALESCE(ss_all.hard_solved,0)::numeric / NULLIF(b.hard_assigned,0) * 20) +
             (COALESCE(ss_all.medium_solved,0)::numeric / NULLIF(b.medium_assigned,0) * 15) +
             (COALESCE(ss_all.easy_solved,0)::numeric / NULLIF(b.easy_assigned,0) * 10), 2
-          ) AS alltime_score,
-          
-          ROUND(
-            (COALESCE(ss_weekly.hard_solved_weekly,0)::numeric / NULLIF(b.hard_assigned,0) * 20) +
-            (COALESCE(ss_weekly.medium_solved_weekly,0)::numeric / NULLIF(b.medium_assigned,0) * 15) +
-            (COALESCE(ss_weekly.easy_solved_weekly,0)::numeric / NULLIF(b.easy_assigned,0) * 10), 2
-          ) AS weekly_score,
-          
-          ROUND(
-            (COALESCE(ss_monthly.hard_solved_monthly,0)::numeric / NULLIF(b.hard_assigned,0) * 20) +
-            (COALESCE(ss_monthly.medium_solved_monthly,0)::numeric / NULLIF(b.medium_assigned,0) * 15) +
-            (COALESCE(ss_monthly.easy_solved_monthly,0)::numeric / NULLIF(b.easy_assigned,0) * 10), 2
-          ) AS monthly_score
+          ) AS alltime_score
           
         FROM "Student" s
         JOIN "Batch" b ON s.batch_id = b.id
         JOIN "City" c ON s.city_id = c.id
         LEFT JOIN student_solves_all ss_all ON ss_all.student_id = s.id
-        LEFT JOIN student_solves_weekly ss_weekly ON ss_weekly.student_id = s.id
-        LEFT JOIN student_solves_monthly ss_monthly ON ss_monthly.student_id = s.id
         LEFT JOIN student_activity_dates ad ON ad.student_id = s.id
                 WHERE s.batch_id IS NOT NULL
       ),
@@ -157,27 +107,7 @@ export const syncLeaderboardData = async () => {
           ROW_NUMBER() OVER (
             PARTITION BY batch_year, city_name
             ORDER BY alltime_score DESC, hard_completion DESC, medium_completion DESC, easy_completion DESC, total_solved DESC
-          ) AS alltime_city_rank,
-          
-          -- Weekly rankings
-          ROW_NUMBER() OVER (
-            PARTITION BY batch_year
-            ORDER BY weekly_score DESC, hard_completion DESC, medium_completion DESC, easy_completion DESC, total_solved_weekly DESC
-          ) AS weekly_global_rank,
-          ROW_NUMBER() OVER (
-            PARTITION BY batch_year, city_name
-            ORDER BY weekly_score DESC, hard_completion DESC, medium_completion DESC, easy_completion DESC, total_solved_weekly DESC
-          ) AS weekly_city_rank,
-          
-          -- Monthly rankings
-          ROW_NUMBER() OVER (
-            PARTITION BY batch_year
-            ORDER BY monthly_score DESC, hard_completion DESC, medium_completion DESC, easy_completion DESC, total_solved_monthly DESC
-          ) AS monthly_global_rank,
-          ROW_NUMBER() OVER (
-            PARTITION BY batch_year, city_name
-            ORDER BY monthly_score DESC, hard_completion DESC, medium_completion DESC, easy_completion DESC, total_solved_monthly DESC
-          ) AS monthly_city_rank
+          ) AS alltime_city_rank
           
         FROM final_stats
       )
@@ -189,10 +119,6 @@ export const syncLeaderboardData = async () => {
         easy_solved,
         activity_dates,
         question_dates,
-        weekly_global_rank,
-        weekly_city_rank,
-        monthly_global_rank,
-        monthly_city_rank,
         alltime_global_rank,
         alltime_city_rank
       FROM ranked_stats
@@ -215,15 +141,13 @@ export const syncLeaderboardData = async () => {
           const activityDates = row.activity_dates || [];
           const streaks = calculateStreakWithFreeze(activityDates, questionAvailability);
           
-          return `(${row.student_id}, ${row.hard_solved}, ${row.medium_solved}, ${row.easy_solved}, ${streaks.currentStreak}, ${streaks.maxStreak}, ${row.weekly_global_rank}, ${row.weekly_city_rank}, ${row.monthly_global_rank}, ${row.monthly_city_rank}, ${row.alltime_global_rank}, ${row.alltime_city_rank}, NOW())`;
+          return `(${row.student_id}, ${row.hard_solved}, ${row.medium_solved}, ${row.easy_solved}, ${streaks.currentStreak}, ${streaks.maxStreak}, ${row.alltime_global_rank}, ${row.alltime_city_rank}, NOW())`;
         }).join(',');
 
         await tx.$executeRawUnsafe(`
           INSERT INTO "Leaderboard" (
             student_id, hard_solved, medium_solved, easy_solved, 
             current_streak, max_streak,
-            weekly_global_rank, weekly_city_rank,
-            monthly_global_rank, monthly_city_rank,
             alltime_global_rank, alltime_city_rank,
             last_calculated
           ) VALUES ${values}
@@ -233,10 +157,6 @@ export const syncLeaderboardData = async () => {
             easy_solved = EXCLUDED.easy_solved,
             current_streak = EXCLUDED.current_streak,
             max_streak = EXCLUDED.max_streak,
-            weekly_global_rank = EXCLUDED.weekly_global_rank,
-            weekly_city_rank = EXCLUDED.weekly_city_rank,
-            monthly_global_rank = EXCLUDED.monthly_global_rank,
-            monthly_city_rank = EXCLUDED.monthly_city_rank,
             alltime_global_rank = EXCLUDED.alltime_global_rank,
             alltime_city_rank = EXCLUDED.alltime_city_rank,
             last_calculated = NOW()

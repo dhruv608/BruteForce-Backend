@@ -1,10 +1,6 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSuperAdminStats = exports.getCurrentSuperAdminController = void 0;
-const prisma_1 = __importDefault(require("../config/prisma"));
 const superadminStats_service_1 = require("../services/superadminStats.service");
 const asyncHandler_1 = require("../utils/asyncHandler");
 const ApiError_1 = require("../utils/ApiError");
@@ -18,22 +14,7 @@ exports.getCurrentSuperAdminController = (0, asyncHandler_1.asyncHandler)(async 
                 message: "SuperAdmin not authenticated"
             });
         }
-        // Get full superadmin details from database
-        const superadmin = await prisma_1.default.admin.findUnique({
-            where: { id: superadminInfo.id },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true
-            }
-        });
-        if (!superadmin) {
-            return res.status(404).json({
-                success: false,
-                message: "SuperAdmin not found"
-            });
-        }
+        const superadmin = await (0, superadminStats_service_1.getCurrentSuperAdminService)(superadminInfo.id);
         return res.status(200).json({
             success: true,
             data: {
@@ -47,7 +28,6 @@ exports.getCurrentSuperAdminController = (0, asyncHandler_1.asyncHandler)(async 
     catch (error) {
         if (error instanceof ApiError_1.ApiError)
             throw error;
-        console.error("Get current superadmin error:", error);
         return res.status(500).json({
             success: false,
             message: error instanceof Error ? error.message : "Failed to fetch current superadmin"

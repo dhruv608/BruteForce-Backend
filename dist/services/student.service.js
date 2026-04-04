@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.addStudentProgressService = exports.createStudentService = exports.deleteStudentDetailsService = exports.updateStudentDetailsService = exports.getStudentReportService = exports.getAllStudentsService = void 0;
+exports.getCurrentStudentService = exports.addStudentProgressService = exports.createStudentService = exports.deleteStudentDetailsService = exports.updateStudentDetailsService = exports.getStudentReportService = exports.getAllStudentsService = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const usernameGenerator_1 = require("../utils/usernameGenerator");
@@ -365,9 +365,7 @@ const updateStudentDetailsService = async (id, body) => {
     }
 };
 exports.updateStudentDetailsService = updateStudentDetailsService;
-// ==============================
 // DELETE STUDENT
-// ==============================
 const deleteStudentDetailsService = async (id) => {
     try {
         const student = await prisma_1.default.student.findUnique({
@@ -391,9 +389,7 @@ const deleteStudentDetailsService = async (id) => {
     }
 };
 exports.deleteStudentDetailsService = deleteStudentDetailsService;
-// ==============================
 // CREATE STUDENT
-// ==============================
 const createStudentService = async (data) => {
     try {
         const { name, email, username, password, enrollment_id, batch_id, leetcode_id, gfg_id } = data;
@@ -499,3 +495,35 @@ const addStudentProgressService = async (student_id, question_id) => {
     }
 };
 exports.addStudentProgressService = addStudentProgressService;
+const getCurrentStudentService = async (studentId) => {
+    const student = await prisma_1.default.student.findUnique({
+        where: { id: studentId },
+        select: {
+            id: true,
+            name: true,
+            username: true,
+            city: {
+                select: {
+                    id: true,
+                    city_name: true
+                }
+            },
+            batch: {
+                select: {
+                    id: true,
+                    batch_name: true,
+                    year: true
+                }
+            },
+            email: true,
+            profile_image_url: true,
+            leetcode_id: true,
+            gfg_id: true
+        }
+    });
+    if (!student) {
+        throw new ApiError_1.ApiError(404, "Student not found", [], "STUDENT_NOT_FOUND");
+    }
+    return student;
+};
+exports.getCurrentStudentService = getCurrentStudentService;

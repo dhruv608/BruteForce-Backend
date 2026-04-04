@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSuperAdminStatsService = void 0;
+exports.getCurrentSuperAdminService = exports.getSuperAdminStatsService = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const ApiError_1 = require("../utils/ApiError");
 const getSuperAdminStatsService = async () => {
@@ -29,3 +29,19 @@ const getSuperAdminStatsService = async () => {
     }
 };
 exports.getSuperAdminStatsService = getSuperAdminStatsService;
+const getCurrentSuperAdminService = async (adminId) => {
+    const superadmin = await prisma_1.default.admin.findUnique({
+        where: { id: adminId },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+        }
+    });
+    if (!superadmin) {
+        throw new ApiError_1.ApiError(404, "SuperAdmin not found");
+    }
+    return superadmin;
+};
+exports.getCurrentSuperAdminService = getCurrentSuperAdminService;

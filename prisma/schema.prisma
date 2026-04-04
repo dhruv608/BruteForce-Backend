@@ -35,6 +35,7 @@ model Batch {
   @@index([city_id])
 }
 
+
 model Student {
   id                Int               @id @default(autoincrement())
   name              String            @db.VarChar(100)
@@ -171,14 +172,8 @@ model Leaderboard {
   medium_solved       Int      @default(0)
   alltime_city_rank   Int      @default(0)
   alltime_global_rank Int      @default(0)
-  monthly_city_rank   Int      @default(0)
-  monthly_global_rank Int      @default(0)
-  weekly_city_rank    Int      @default(0)
-  weekly_global_rank  Int      @default(0)
   student             Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
 
-  @@index([weekly_global_rank])
-  @@index([monthly_global_rank])
   @@index([alltime_global_rank])
   @@index([max_streak])
   @@index([last_calculated])

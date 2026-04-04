@@ -1,12 +1,9 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getRolesController = exports.deleteAdminController = exports.updateAdminController = exports.getAllAdminsController = exports.createAdminController = exports.getAdminStats = exports.getCurrentAdminController = void 0;
-const prisma_1 = __importDefault(require("../config/prisma"));
 const client_1 = require("@prisma/client");
 const admin_service_1 = require("../services/admin.service");
+const admin_service_2 = require("../services/admin.service");
 const asyncHandler_1 = require("../utils/asyncHandler");
 const ApiError_1 = require("../utils/ApiError");
 exports.getCurrentAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
@@ -16,52 +13,16 @@ exports.getCurrentAdminController = (0, asyncHandler_1.asyncHandler)(async (req,
         if (!adminInfo) {
             throw new ApiError_1.ApiError(401, "Admin not authenticated", [], "AUTH_ERROR");
         }
-        // Get full admin details from database
-        const admin = await prisma_1.default.admin.findUnique({
-            where: { id: adminInfo.id },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-                city_id: true,
-                batch_id: true,
-                city: {
-                    select: {
-                        id: true,
-                        city_name: true
-                    }
-                },
-                batch: {
-                    select: {
-                        id: true,
-                        batch_name: true,
-                        year: true
-                    }
-                }
-            }
-        });
-        if (!admin) {
-            throw new ApiError_1.ApiError(404, "Admin not found", [], "ADMIN_NOT_FOUND");
-        }
+        const admin = await (0, admin_service_1.getCurrentAdminService)(adminInfo.id);
         return res.status(200).json({
             success: true,
-            data: {
-                id: admin.id,
-                name: admin.name,
-                email: admin.email,
-                role: admin.role,
-                cityId: admin.city_id,
-                batchId: admin.batch_id,
-                city: admin.city,
-                batch: admin.batch
-            }
+            data: admin
         });
     }
     catch (error) {
         if (error instanceof ApiError_1.ApiError)
             throw error;
-        throw new ApiError_1.ApiError(500, "Failed to fetch current admin", [], "SERVER_ERROR");
+        throw new ApiError_1.ApiError(500, "Failed to fetch current admin", [], "INTERNAL_SERVER_ERROR");
     }
 });
 exports.getAdminStats = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
@@ -72,89 +33,10 @@ exports.getAdminStats = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
             throw new ApiError_1.ApiError(400, "Valid batch_id is required", [], "VALIDATION_ERROR");
         }
         const batchId = parseInt(batch_id);
-        // Check if batch exists
-        const batch = await prisma_1.default.batch.findUnique({
-            where: { id: batchId },
-            include: {
-                city: {
-                    select: {
-                        city_name: true
-                    }
-                }
-            }
-        });
-        if (!batch) {
-            throw new ApiError_1.ApiError(404, "Batch not found", [], "BATCH_NOT_FOUND");
-        }
-        // Get total classes for this batch
-        const totalClasses = await prisma_1.default.class.count({
-            where: { batch_id: batchId }
-        });
-        // Get total students for this batch
-        const totalStudents = await prisma_1.default.student.count({
-            where: { batch_id: batchId }
-        });
-        // Get all questions assigned to this batch's classes
-        const assignedQuestions = await prisma_1.default.questionVisibility.findMany({
-            where: {
-                class: {
-                    batch_id: batchId
-                }
-            },
-            include: {
-                question: {
-                    select: {
-                        level: true,
-                        platform: true,
-                        type: true
-                    }
-                }
-            }
-        });
-        const totalQuestions = assignedQuestions.length;
-        // Calculate questions by type
-        const questionsByType = {
-            homework: assignedQuestions.filter((qc) => qc.question.type === 'HOMEWORK').length,
-            classwork: assignedQuestions.filter((qc) => qc.question.type === 'CLASSWORK').length
-        };
-        // Calculate questions by level
-        const questionsByLevel = {
-            easy: assignedQuestions.filter((qc) => qc.question.level === 'EASY').length,
-            medium: assignedQuestions.filter((qc) => qc.question.level === 'MEDIUM').length,
-            hard: assignedQuestions.filter((qc) => qc.question.level === 'HARD').length
-        };
-        // Calculate questions by platform
-        const questionsByPlatform = {
-            leetcode: assignedQuestions.filter((qc) => qc.question.platform === 'LEETCODE').length,
-            gfg: assignedQuestions.filter((qc) => qc.question.platform === 'GFG').length,
-            other: assignedQuestions.filter((qc) => qc.question.platform === 'OTHER').length,
-            interviewbit: assignedQuestions.filter((qc) => qc.question.platform === 'INTERVIEWBIT').length
-        };
-        // Get total topics discussed for this batch
-        const totalTopicsDiscussed = await prisma_1.default.topic.count({
-            where: {
-                classes: {
-                    some: {
-                        batch_id: batchId
-                    }
-                }
-            }
-        });
+        const stats = await (0, admin_service_1.getAdminStatsService)(batchId);
         return res.status(200).json({
             success: true,
-            data: {
-                batch_id: batchId,
-                batch_name: batch.batch_name,
-                city: batch.city.city_name,
-                year: batch.year,
-                total_classes: totalClasses,
-                total_questions: totalQuestions,
-                total_students: totalStudents,
-                questions_by_type: questionsByType,
-                questions_by_level: questionsByLevel,
-                questions_by_platform: questionsByPlatform,
-                total_topics_discussed: totalTopicsDiscussed
-            }
+            data: stats
         });
     }
     catch (error) {
@@ -170,7 +52,7 @@ exports.createAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res
         if (!adminData.name || !adminData.email || !adminData.password) {
             throw new ApiError_1.ApiError(400, "Missing required fields: name, email, password", [], "VALIDATION_ERROR");
         }
-        const newAdmin = await (0, admin_service_1.createAdminService)(adminData);
+        const newAdmin = await (0, admin_service_2.createAdminService)(adminData);
         return res.status(201).json({
             success: true,
             message: "Admin created successfully",
@@ -190,7 +72,7 @@ exports.getAllAdminsController = (0, asyncHandler_1.asyncHandler)(async (req, re
         if (!filters.role) {
             filters.role = 'TEACHER';
         }
-        const admins = await (0, admin_service_1.getAllAdminsService)(filters);
+        const admins = await (0, admin_service_2.getAllAdminsService)(filters);
         return res.status(200).json({
             success: true,
             data: admins
@@ -209,7 +91,7 @@ exports.updateAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res
         if (!id || isNaN(parseInt(id))) {
             throw new ApiError_1.ApiError(400, "Valid admin ID is required", [], "VALIDATION_ERROR");
         }
-        const updatedAdmin = await (0, admin_service_1.updateAdminService)(parseInt(id), updateData);
+        const updatedAdmin = await (0, admin_service_2.updateAdminService)(parseInt(id), updateData);
         return res.status(200).json({
             success: true,
             message: "Admin updated successfully",
@@ -230,7 +112,7 @@ exports.deleteAdminController = (0, asyncHandler_1.asyncHandler)(async (req, res
         if (!id || isNaN(parseInt(id))) {
             throw new ApiError_1.ApiError(400, "Valid admin ID is required", [], "VALIDATION_ERROR");
         }
-        const result = await (0, admin_service_1.deleteAdminService)(parseInt(id));
+        const result = await (0, admin_service_2.deleteAdminService)(parseInt(id));
         return res.status(200).json({
             success: true,
             message: result.message

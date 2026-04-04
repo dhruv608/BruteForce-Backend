@@ -83,14 +83,8 @@ export const getCityYearMapping = async () => {
 
 export const getLeaderboardWithPagination = async (filters: any, pagination: any, search: string | null) => {
     try {
-        let { type = "all", city = "all", year = null } = filters;
+        let { city = "all", year = null } = filters;
         const { page = 1, limit = 20 } = pagination;
-
-        // Validate type parameter
-        const validTypes = ["all", "weekly", "monthly"];
-        if (!validTypes.includes(type)) {
-            throw new ApiError(400, `Invalid type parameter. Must be one of: ${validTypes.join(", ")}`);
-        }
 
         // Validate year parameter - get from database
         const validYears = await getAvailableYears();
@@ -115,17 +109,9 @@ export const getLeaderboardWithPagination = async (filters: any, pagination: any
             };
         }
 
-        // Dynamic rank selection based on time period
+        // Always use all-time rankings
         let globalRankField = "l.alltime_global_rank";
         let cityRankField = "l.alltime_city_rank";
-        
-        if (type === "weekly") {
-            globalRankField = "l.weekly_global_rank";
-            cityRankField = "l.weekly_city_rank";
-        } else if (type === "monthly") {
-            globalRankField = "l.monthly_global_rank";
-            cityRankField = "l.monthly_city_rank";
-        }
 
         // Build filters - year is now always required
         const params: any[] = [];
@@ -177,11 +163,7 @@ export const getLeaderboardWithPagination = async (filters: any, pagination: any
              round(   (l.hard_solved::numeric / NULLIF(b.hard_assigned,0) * 2000) +
                 (l.medium_solved::numeric / NULLIF(b.medium_assigned,0) * 1500) +
                 (l.easy_solved::numeric / NULLIF(b.easy_assigned,0) * 1000),2) AS score,
-                -- All time-based rankings
-                l.weekly_global_rank,
-                l.weekly_city_rank,
-                l.monthly_global_rank,
-                l.monthly_city_rank,
+                -- All-time rankings
                 l.alltime_global_rank,
                 l.alltime_city_rank,
                 l.last_calculated
@@ -211,11 +193,7 @@ export const getLeaderboardWithPagination = async (filters: any, pagination: any
             current_streak: Number(row.current_streak),
             max_streak: Number(row.max_streak),
             score: Number(row.score) || 0,
-            // All time-based rankings
-            weekly_global_rank: Number(row.weekly_global_rank),
-            weekly_city_rank: Number(row.weekly_city_rank),
-            monthly_global_rank: Number(row.monthly_global_rank),
-            monthly_city_rank: Number(row.monthly_city_rank),
+            // All-time rankings
             alltime_global_rank: Number(row.alltime_global_rank),
             alltime_city_rank: Number(row.alltime_city_rank),
             last_calculated: row.last_calculated
@@ -279,19 +257,17 @@ export const getLeaderboardWithPagination = async (filters: any, pagination: any
 
 export const getStudentRankDirect = async (studentId: number, filters: any) => {
     try {
-        const { type = "all", city = "all", year } = filters;
+        const { city, year } = filters;
         
-        // Dynamic rank selection based on time period
+        // Validate year parameter
+        const validYears = await getAvailableYears();
+        if (year && !validYears.includes(year)) {
+            throw new ApiError(400, `Invalid year parameter. Must be one of: ${validYears.join(", ")}`);
+        }
+        
+        // Always use all-time rankings
         let rankField = "l.alltime_global_rank";
         let cityRankField = "l.alltime_city_rank";
-        
-        if (type === "weekly") {
-            rankField = "l.weekly_global_rank";
-            cityRankField = "l.weekly_city_rank";
-        } else if (type === "monthly") {
-            rankField = "l.monthly_global_rank";
-            cityRankField = "l.monthly_city_rank";
-        }
 
         const params: any[] = [studentId, year];
         let cityFilter = "";

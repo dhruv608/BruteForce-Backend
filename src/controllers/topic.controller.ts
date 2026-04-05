@@ -5,7 +5,7 @@ import { upload } from "../middlewares/upload.middleware";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiError } from "../utils/ApiError";
 import { generateSlug } from "../utils/slugify";
-
+import { detectPlatform } from "../services/question.service";
 export const createTopic = asyncHandler(async (
   req: Request,
   res: Response
@@ -81,9 +81,6 @@ export const deleteTopic = asyncHandler(async (req: Request, res: Response) => {
     message: "Topic deleted successfully",
   });
 });
-
-
-
 // Student-specific controller - get topics with batch progress
 export const getTopicsWithBatchProgress = asyncHandler(async (req: Request, res: Response) => {
   // Get student info from middleware (extractStudentInfo)
@@ -184,6 +181,7 @@ export const getTopicProgressByUsername = asyncHandler(async (req: Request, res:
   });
 });
 
+
 export const bulkTestUploadQuestions = asyncHandler(async (req: Request, res: Response) => {
   const file = req.file;
 
@@ -264,13 +262,14 @@ export const bulkTestUploadQuestions = asyncHandler(async (req: Request, res: Re
     throw new ApiError(400, `Invalid topic slugs: ${missingSlugs.join(', ')}`, [], "INVALID_TOPIC");
   }
 
-  // Create questions with topic IDs
+  // Create questions with topic IDs and detected platform
   const questionsData = validatedQuestions.map(q => ({
     question_name: q.question_name,
     question_link: q.question_link,
     level: q.level,
     type: q.type,
     topic_id: topicMap.get(q.topic_slug)!, // We know this exists after validation
+    platform: detectPlatform(q.question_link), // Detect platform from question link
   }));
 
   const created = await prisma.question.createMany({

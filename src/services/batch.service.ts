@@ -42,7 +42,9 @@ export const createBatchService = async ({
 
   if (duplicate) {
     throw new ApiError(409, 
-                "Batch with same name and year already exists in this city"
+                "Batch with same name and year already exists in this city",
+                [],
+                "BATCH_DUPLICATE"
               );
   }
 
@@ -152,7 +154,9 @@ export const updateBatchService = async ({
 
   if (duplicate) {
     throw new ApiError(400, 
-                "Batch with same name and year already exists in this city"
+                "Batch with same name and year already exists in this city",
+                [],
+                "BATCH_DUPLICATE"
               );
   }
 

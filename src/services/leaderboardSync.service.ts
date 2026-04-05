@@ -1,5 +1,6 @@
 import prisma from "../config/prisma";
 import { calculateStreakByActivity, calculateStreakWithFreeze, calculateStreakWithCompletionFreeze } from "../utils/streakCalculator";
+import { getBatchQuestionStats } from "./heatmap.service";
 
 export const syncLeaderboardData = async () => {
   const syncStart = Date.now();
@@ -114,7 +115,7 @@ export const syncLeaderboardData = async () => {
       FROM ranked_stats
       `);
 
-      console.log(`📊 Calculated data for ${result.length} students in ${Date.now() - calculationStart}ms`);
+      console.log(`Calculated data for ${result.length} students in ${Date.now() - calculationStart}ms`);
 
       // Step 3: Bulk upsert new data with streak calculation
       if (result.length > 0) {
@@ -131,10 +132,11 @@ export const syncLeaderboardData = async () => {
         }
         
         const values = result.map((row: any) => {
-          // Calculate streaks with completion-based freeze logic
-          const activityDates = row.activity_dates || [];
+          // Convert SQL DATE array to JavaScript Date array
+          const activityDates = (row.activity_dates || []).map((dateStr: string) => new Date(dateStr));
           console.log(`🔍 DEBUG: Processing student ${row.student_id}, activity dates: ${activityDates.length}, completed_all_questions: ${row.completed_all_questions}`);
           
+          // Use shared batch stats logic for consistency
           const streaks = calculateStreakWithCompletionFreeze(
             activityDates, 
             row.student_id, 

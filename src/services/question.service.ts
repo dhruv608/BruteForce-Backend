@@ -11,7 +11,7 @@ interface CreateQuestionInput {
   type?: "HOMEWORK" | "CLASSWORK";
 }
 
-const detectPlatform = (link: string): Platform => {
+export const detectPlatform = (link: string): Platform => {
   const normalized = link.toLowerCase();
 
   if (normalized.includes("leetcode.com"))

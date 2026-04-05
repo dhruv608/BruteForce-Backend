@@ -305,10 +305,11 @@ export function calculateStreakWithCompletionFreeze(
   // Sort dates in descending order (newest first)
   const sortedDates = activityDates.sort((a, b) => b.getTime() - a.getTime());
   
-  // Convert to date strings (YYYY-MM-DD) to compare days
-  const dateStrings = sortedDates.map(date => 
-    date.toISOString().split('T')[0]
-  );
+  // Convert to date strings (YYYY-MM-DD) in local timezone to compare days
+  const dateStrings = sortedDates.map(date => {
+    const localDate = new Date(date);
+    return localDate.toLocaleDateString('en-CA'); // YYYY-MM-DD format in local timezone
+  });
   
   // Remove duplicates (same day multiple submissions)
   const uniqueDates = [...new Set(dateStrings)];
@@ -318,12 +319,13 @@ export function calculateStreakWithCompletionFreeze(
   let maxStreak = 0;
   let tempStreak = 0;
   
-  const today = new Date().toISOString().split('T')[0];
+  // Use local timezone for today
+  const today = new Date().toLocaleDateString('en-CA');
   let expectedDate = new Date(today);
   
   // Check current streak from today backwards
   for (const dateStr of uniqueDates) {
-    const expectedDateStr = expectedDate.toISOString().split('T')[0];
+    const expectedDateStr = expectedDate.toLocaleDateString('en-CA');
     
     if (dateStr === expectedDateStr) {
       currentStreak++;

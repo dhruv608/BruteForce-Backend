@@ -36,6 +36,10 @@ router.post("/topics", role_middleware_1.isTeacherOrAbove, imageUpload_middlewar
 router.put("/topics/:topicSlug", role_middleware_1.isTeacherOrAbove, imageUpload_middleware_1.uploadImage.single('photo'), topic_controller_1.updateTopic);
 router.patch("/topics/:topicSlug", role_middleware_1.isTeacherOrAbove, imageUpload_middleware_1.uploadImage.single('photo'), topic_controller_1.updateTopic);
 router.delete("/topics/:topicSlug", role_middleware_1.isTeacherOrAbove, topic_controller_1.deleteTopic);
+// Bulk Operation for Topics
+router.post("/topics/bulk-upload", role_middleware_1.isTeacherOrAbove, topic_controller_1.createTopicsBulk);
+// Bulk Test Upload Questions contain topic slug
+router.post("/bulkTestUpload", role_middleware_1.isTeacherOrAbove, upload_middleware_1.upload.single("file"), topic_controller_1.bulkTestUploadQuestions);
 // questions gloabal 
 router.post("/questions", role_middleware_1.isTeacherOrAbove, question_controller_1.createQuestion);
 router.get("/questions", question_controller_1.getAllQuestions);
@@ -45,7 +49,7 @@ router.delete("/questions/:id", role_middleware_1.isTeacherOrAbove, question_con
 router.post("/questions/bulk-upload", role_middleware_1.isAdmin, role_middleware_1.isTeacherOrAbove, upload_middleware_1.upload.single("file"), questionBulk_controller_1.bulkUploadQuestions);
 // Download Batch Report
 router.post("/student/reportdownload", csv_controller_1.downloadBatchReportController);
-// Bulk Operation for Studenta 
+// Bulk Operation for Student 
 router.post("/bulk-operations", upload_middleware_1.upload.single("file"), bulk_controller_1.bulkStudentUploadController);
 // Admin Statistics
 router.post("/stats", admin_controller_1.getAdminStats);

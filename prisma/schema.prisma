@@ -66,6 +66,7 @@ model Student {
 
   @@index([city_id])
   @@index([batch_id])
+  @@index([batch_id, city_id])
 }
 
 model Admin {
@@ -180,6 +181,7 @@ model Leaderboard {
   @@index([max_streak])
   @@index([last_calculated])
   @@index([student_id])
+  @@index([student_id, alltime_global_rank, alltime_city_rank])
 }
 
 enum Platform {

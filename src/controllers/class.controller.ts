@@ -64,12 +64,16 @@ export const createClassInTopic = asyncHandler(async (
               class_date,
             } = req.body;
 
+            // Handle PDF file upload
+            const pdf_file = (req as any).file;
+
             const newClass = await createClassInTopicService({
               batchId: batch.id,
               topicSlug: topicSlugParam,
               class_name,
               description,
               pdf_url,
+              pdf_file,
               duration_minutes,
               class_date,
             });
@@ -140,6 +144,7 @@ export const updateClass = asyncHandler(async (
               topicSlug: topicSlugParam,
               classSlug,
               ...req.body,
+              pdf_file: (req as any).file, // Handle PDF file upload
             });
 
             return res.json({

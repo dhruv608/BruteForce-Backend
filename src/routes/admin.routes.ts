@@ -10,6 +10,7 @@ import { createQuestion, deleteQuestion, getAllQuestions, getAssignedQuestionsCo
 import { bulkUploadQuestions } from "../controllers/questionBulk.controller";
 import { uploadImage } from "../middlewares/imageUpload.middleware";
 import { upload } from "../middlewares/upload.middleware";
+import { uploadPdf } from "../middlewares/pdfUpload.middleware";
 import { getAdminStats, getRolesController, getCurrentAdminController } from "../controllers/admin.controller";
 import { downloadBatchReportController } from "../controllers/csv.controller";
 import { getAdminLeaderboard } from "../controllers/leaderboard.controller";
@@ -121,6 +122,7 @@ router.get(
 router.post(
   "/:batchSlug/topics/:topicSlug/classes",
   isTeacherOrAbove,
+  uploadPdf,
   createClassInTopic
 );
 
@@ -133,8 +135,8 @@ router.get(
 router.patch(
   "/:batchSlug/topics/:topicSlug/classes/:classSlug",
   isTeacherOrAbove,
+  uploadPdf,
   updateClass
-
 );
 
 router.delete(

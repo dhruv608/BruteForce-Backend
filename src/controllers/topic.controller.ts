@@ -104,6 +104,9 @@ export const getTopicsWithBatchProgress = asyncHandler(async (req: Request, res:
 
 // Student-specific controller - get topic overview with classes summary
 export const getTopicOverviewWithClassesSummary = asyncHandler(async (req: Request, res: Response) => {
+  const requestId = Math.random().toString(36).substr(2, 9);
+  console.log(`[${requestId}] CONTROLLER START: getTopicOverviewWithClassesSummary`);
+  
   // Get student info from middleware (extractStudentInfo)
   const student = (req as any).student;
   const batchId = (req as any).batchId;
@@ -114,10 +117,13 @@ export const getTopicOverviewWithClassesSummary = asyncHandler(async (req: Reque
   // Ensure topicSlug is a string (not string array)
   const slug = Array.isArray(topicSlug) ? topicSlug[0] : topicSlug;
 
+  console.log(`[${requestId}] CONTROLLER: studentId=${studentId}, batchId=${batchId}, topicSlug=${slug}`);
+
   if (!studentId || !batchId || !slug) {
     throw new ApiError(400, "Student authentication and topic slug required", [], "REQUIRED_FIELD");
   }
 
+  console.log(`[${requestId}] CONTROLLER: Calling service`);
   const topicOverview = await getTopicOverviewWithClassesSummaryService({
     studentId,
     batchId,
@@ -125,6 +131,7 @@ export const getTopicOverviewWithClassesSummary = asyncHandler(async (req: Reque
     query: req.query,
   });
 
+  console.log(`[${requestId}] CONTROLLER: Sending response`);
   return res.json(topicOverview);
 });
 

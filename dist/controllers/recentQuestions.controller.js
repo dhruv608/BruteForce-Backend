@@ -8,18 +8,28 @@ exports.getRecentQuestions = (0, asyncHandler_1.asyncHandler)(async (req, res) =
     try {
         // Get batch info from middleware (extractStudentInfo)
         const batchId = req.batchId;
-        const { days } = req.query;
+        const { date } = req.query;
         if (!batchId) {
             throw new ApiError_1.ApiError(401, "Student authentication required", [], "UNAUTHORIZED");
         }
-        // Parse days parameter (default to 7)
-        const daysParam = days ? parseInt(days) : 7;
-        if (isNaN(daysParam) || daysParam < 1 || daysParam > 30) {
-            throw new ApiError_1.ApiError(400, "Days parameter must be a number between 1 and 30", [], "INVALID_INPUT");
+        // Validate date parameter (format: YYYY-MM-DD)
+        let dateParam;
+        if (date) {
+            const dateStr = date;
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(dateStr)) {
+                throw new ApiError_1.ApiError(400, "Date parameter must be in YYYY-MM-DD format", [], "INVALID_INPUT");
+            }
+            // Validate if it's a valid date
+            const parsedDate = new Date(dateStr);
+            if (isNaN(parsedDate.getTime())) {
+                throw new ApiError_1.ApiError(400, "Invalid date provided", [], "INVALID_INPUT");
+            }
+            dateParam = dateStr;
         }
         const questions = await (0, recentQuestions_service_1.getRecentQuestionsService)({
             batchId,
-            days: daysParam
+            date: dateParam
         });
         return res.json({
             questions,

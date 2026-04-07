@@ -92,59 +92,15 @@ const getTopicsForBatchService = async ({ batchId, query }) => {
     if (!batch) {
         throw new ApiError_1.ApiError(errorMapper_1.HTTP_STATUS.NOT_FOUND, "Batch not found");
     }
-    // Get ALL topics for this batch (not just ones with classes)
-    // const allTopics = await prisma.topic.findMany({
-    //   where: {
-    //     // Get topics that are either:
-    //     // 1. Assigned to this batch via classes, OR
-    //     // 2. Global topics not assigned to any specific batch
-    //     OR: [
-    //       {
-    //         classes: {
-    //           some: {
-    //             batch_id: batchId
-    //           }
-    //         }
-    //       },
-    //       {
-    //         classes: {
-    //           none: {}  // Global topics with no classes
-    //         }
-    //       }
-    //     ]
-    //   },
-    //   include: {
-    //     classes: {
-    //       where: {
-    //         batch_id: batchId
-    //       },
-    //       include: {
-    //         questionVisibility: {
-    //           include: {
-    //             question: {
-    //               select: {
-    //                 id: true,
-    //                 topic_id: true,
-    //               },
-    //             },
-    //           },
-    //         },
-    //       },
-    //     },
-    //   },
-    //   orderBy: { created_at: "desc" }
-    // });
     const allTopics = await prisma_1.default.topic.findMany({
         orderBy: { created_at: "desc" }
     });
-    // Step 2: Get all classes for THIS batch
     const batchClasses = await prisma_1.default.class.findMany({
         where: { batch_id: batchId },
         include: {
             questionVisibility: true
         }
     });
-    // Step 3: Create map of topic -> classes/questions for THIS batch
     const topicStats = new Map();
     batchClasses.forEach(cls => {
         const currentStats = topicStats.get(cls.topic_id) || { classCount: 0, questionCount: 0 };
@@ -152,9 +108,12 @@ const getTopicsForBatchService = async ({ batchId, query }) => {
         currentStats.questionCount += cls.questionVisibility.length;
         topicStats.set(cls.topic_id, currentStats);
     });
-    // Step 4: Transform all topics with stats
     const topics = allTopics.map(topic => {
         const stats = topicStats.get(topic.id) || { classCount: 0, questionCount: 0 };
+        const topicClasses = batchClasses.filter(cls => cls.topic_id === topic.id);
+        const lastClass = topicClasses.length > 0
+            ? topicClasses.reduce((latest, cls) => !latest || new Date(cls.created_at) > new Date(latest.created_at) ? cls : latest, null)
+            : null;
         return {
             id: topic.id.toString(),
             topic_name: topic.topic_name,
@@ -162,14 +121,12 @@ const getTopicsForBatchService = async ({ batchId, query }) => {
             photo_url: topic.photo_url,
             created_at: topic.created_at,
             updated_at: topic.updated_at,
-            classCount: stats.classCount, // 0 for new batches
-            questionCount: stats.questionCount, // 0 for new batches
-            firstClassCreated_at: null
+            classCount: stats.classCount,
+            questionCount: stats.questionCount,
+            lastClassCreated_at: lastClass?.created_at || null
         };
     });
-    // Create topic map with class counts
     const topicMap = new Map();
-    // Initialize all topics with 0 counts
     allTopics.forEach(topic => {
         topicMap.set(topic.id, {
             id: topic.id.toString(),
@@ -178,39 +135,47 @@ const getTopicsForBatchService = async ({ batchId, query }) => {
             photo_url: topic.photo_url,
             classCount: 0,
             questionCount: 0,
-            firstClassCreated_at: null
+            lastClassCreated_at: null
         });
     });
-    // Update counts for topics that have classes in this batch
     batch.classes.forEach(cls => {
         const topic = topicMap.get(cls.topic.id);
         if (topic) {
             topic.classCount = (topic.classCount || 0) + 1;
             topic.questionCount = (topic.questionCount || 0) + cls.questionVisibility.length;
-            topic.firstClassCreated_at = cls.created_at;
+            topic.lastClassCreated_at = cls.created_at;
         }
     });
-    // Apply search filter if provided
     let filteredTopics = topics;
     if (query?.search) {
         filteredTopics = topics.filter(topic => topic.topic_name.toLowerCase().includes(query.search.toLowerCase()));
     }
-    // Apply sorting
     const sortBy = query?.sortBy || 'recent';
     filteredTopics.sort((a, b) => {
         switch (sortBy) {
             case 'oldest':
-                return new Date(a.firstClassCreated_at || 0).getTime() - new Date(b.firstClassCreated_at || 0).getTime();
+                if (!a.lastClassCreated_at && !b.lastClassCreated_at)
+                    return 0;
+                if (!a.lastClassCreated_at)
+                    return 1;
+                if (!b.lastClassCreated_at)
+                    return -1;
+                return new Date(a.lastClassCreated_at).getTime() - new Date(b.lastClassCreated_at).getTime();
             case 'classes':
                 return (b.classCount || 0) - (a.classCount || 0);
             case 'questions':
                 return (b.questionCount || 0) - (a.questionCount || 0);
             case 'recent':
             default:
-                return new Date(b.firstClassCreated_at || 0).getTime() - new Date(a.firstClassCreated_at || 0).getTime();
+                if (!a.lastClassCreated_at && !b.lastClassCreated_at)
+                    return 0;
+                if (!a.lastClassCreated_at)
+                    return 1;
+                if (!b.lastClassCreated_at)
+                    return -1;
+                return new Date(b.lastClassCreated_at).getTime() - new Date(a.lastClassCreated_at).getTime();
         }
     });
-    // Apply pagination
     const page = parseInt(query?.page) || 1;
     const limit = parseInt(query?.limit) || 10;
     const startIndex = (page - 1) * limit;
@@ -359,202 +324,192 @@ exports.deleteTopicService = deleteTopicService;
 const getTopicsWithBatchProgressService = async ({ studentId, batchId, query, }) => {
     const page = parseInt(query?.page) || 1;
     const limit = parseInt(query?.limit) || 10;
-    const skip = (page - 1) * limit;
     const search = query?.search;
-    // Build where condition for search
-    const whereCondition = {};
-    if (search) {
-        whereCondition.OR = [
-            { topic_name: { contains: search, mode: 'insensitive' } },
-            { slug: { contains: search, mode: 'insensitive' } }
-        ];
+    const sortBy = query?.sortBy || 'recent';
+    const offset = (page - 1) * limit;
+    // Build search condition
+    const searchCondition = search ? `AND (LOWER(t.topic_name) ILIKE LOWER(?) OR LOWER(t.slug) ILIKE LOWER(?))` : '';
+    const searchParams = search ? [`%${search}%`, `%${search}%`] : [];
+    // Build ORDER BY clause safely
+    let orderByClause = 'ORDER BY last_class_created_at DESC NULLS LAST';
+    if (sortBy === 'oldest') {
+        orderByClause = 'ORDER BY last_class_created_at ASC NULLS LAST';
     }
-    // Get total count for pagination
-    const totalCount = await prisma_1.default.topic.count({
-        where: whereCondition
-    });
-    // Get paginated topics with optimized includes
-    const topics = await prisma_1.default.topic.findMany({
-        where: whereCondition,
+    else if (sortBy === 'classes') {
+        orderByClause = 'ORDER BY class_count DESC NULLS LAST, t.created_at DESC';
+    }
+    else if (sortBy === 'questions') {
+        orderByClause = 'ORDER BY question_count DESC NULLS LAST, t.created_at DESC';
+    }
+    else if (sortBy === 'strongest') {
+        orderByClause = 'ORDER BY progress_percentage DESC NULLS LAST, t.created_at DESC';
+    }
+    else if (sortBy === 'weakest') {
+        orderByClause = 'ORDER BY progress_percentage ASC NULLS LAST, t.created_at DESC';
+    }
+    // Main query with all aggregations
+    const topicsQuery = `
+    SELECT 
+      t.id,
+      t.topic_name,
+      t.slug,
+      t.photo_url,
+      t.created_at,
+      t.updated_at,
+      COUNT(DISTINCT c.id) as class_count,
+      COUNT(DISTINCT q.id) as question_count,
+      COUNT(DISTINCT CASE WHEN sp.student_id IS NOT NULL THEN q.id END) as solved_questions,
+      MAX(c.created_at) as last_class_created_at,
+      CASE 
+        WHEN COUNT(DISTINCT q.id) = 0 THEN 0
+        ELSE ROUND((COUNT(DISTINCT CASE WHEN sp.student_id IS NOT NULL THEN q.id END)::float / COUNT(DISTINCT q.id)) * 100)
+      END as progress_percentage
+    FROM "Topic" t
+    LEFT JOIN "Class" c ON t.id = c.topic_id AND c.batch_id = $1
+    LEFT JOIN "QuestionVisibility" qv ON c.id = qv.class_id
+    LEFT JOIN "Question" q ON qv.question_id = q.id
+    LEFT JOIN "StudentProgress" sp ON q.id = sp.question_id AND sp.student_id = $2
+    WHERE 1=1 ${searchCondition}
+    GROUP BY t.id, t.topic_name, t.slug, t.photo_url, t.created_at, t.updated_at
+    ${orderByClause}
+    LIMIT $3 OFFSET $4
+  `;
+    // Count query for pagination metadata
+    const countQuery = `
+    SELECT COUNT(DISTINCT t.id) as total_count
+    FROM "Topic" t
+    LEFT JOIN "Class" c ON t.id = c.topic_id AND c.batch_id = $1
+    WHERE 1=1 ${searchCondition}
+  `;
+    try {
+        // Execute main query with parameters
+        const topics = await prisma_1.default.$queryRawUnsafe(topicsQuery, batchId, studentId, ...searchParams, limit, offset);
+        // Execute count query
+        const countResult = await prisma_1.default.$queryRawUnsafe(countQuery, batchId, ...searchParams);
+        const totalCount = Number(countResult[0]?.total_count) || 0;
+        // Map SQL results to exact same response structure
+        const mappedTopics = topics.map((topic) => ({
+            id: topic.id.toString(),
+            topic_name: topic.topic_name,
+            slug: topic.slug,
+            photo_url: topic.photo_url,
+            created_at: topic.created_at,
+            updated_at: topic.updated_at,
+            classCount: Number(topic.class_count) || 0,
+            questionCount: Number(topic.question_count) || 0,
+            lastClassCreated_at: topic.last_class_created_at,
+            batchSpecificData: {
+                totalClasses: Number(topic.class_count) || 0,
+                totalQuestions: Number(topic.question_count) || 0,
+                solvedQuestions: Number(topic.solved_questions) || 0
+            },
+            progressPercentage: Number(topic.progress_percentage) || 0
+        }));
+        return {
+            topics: mappedTopics,
+            pagination: {
+                total: totalCount,
+                totalPages: Math.ceil(totalCount / limit),
+                page,
+                limit
+            }
+        };
+    }
+    catch (error) {
+        console.error('Error in getTopicsWithBatchProgressService:', error);
+        throw new ApiError_1.ApiError(errorMapper_1.HTTP_STATUS.INTERNAL_SERVER_ERROR, "Failed to fetch topics with progress");
+    }
+};
+exports.getTopicsWithBatchProgressService = getTopicsWithBatchProgressService;
+const getTopicOverviewWithClassesSummaryService = async ({ studentId, batchId, topicSlug, query, }) => {
+    const requestId = Math.random().toString(36).substr(2, 9);
+    console.log(`[${requestId}] START: getTopicOverviewWithClassesSummaryService`);
+    console.time(`[${requestId}] API /topics/:topicSlug TOTAL`);
+    const page = parseInt(query?.page) || 1;
+    const limit = parseInt(query?.limit) || 10;
+    const offset = (page - 1) * limit;
+    // Get topic with paginated classes (WITHOUT _count to avoid subquery performance issue)
+    console.time(`[${requestId}] Query: Fetch Topic + Paginated Classes`);
+    const topic = await prisma_1.default.topic.findFirst({
+        where: { slug: topicSlug },
         select: {
             id: true,
             topic_name: true,
             slug: true,
+            description: true,
             photo_url: true,
             classes: {
-                where: {
-                    batch_id: batchId
-                },
+                where: { batch_id: batchId },
                 select: {
-                    created_at: true,
-                    questionVisibility: {
-                        select: {
-                            question_id: true,
-                            question: {
-                                select: {
-                                    id: true,
-                                    topic_id: true
-                                }
-                            }
-                        }
-                    }
+                    id: true,
+                    class_name: true,
+                    slug: true,
+                    description: true,
+                    pdf_url: true,
+                    class_date: true,
+                    created_at: true
                 },
-                orderBy: { created_at: 'asc' }
-            }
-        },
-        orderBy: { created_at: 'desc' },
-        skip,
-        take: limit
-    });
-    // Collect all question IDs from the paginated topics only
-    const assignedQuestionIds = new Set();
-    topics.forEach((topic) => {
-        topic.classes.forEach((cls) => {
-            cls.questionVisibility.forEach((qv) => {
-                assignedQuestionIds.add(qv.question.id);
-            });
-        });
-    });
-    // Get student progress only for the questions we need
-    const studentProgress = await prisma_1.default.studentProgress.findMany({
-        where: {
-            student_id: studentId,
-            question_id: { in: Array.from(assignedQuestionIds) }
-        },
-        include: {
-            question: {
-                select: {
-                    topic_id: true
-                }
+                orderBy: { created_at: 'asc' },
+                skip: offset,
+                take: limit
             }
         }
     });
-    // Group solved questions by topic
-    const solvedByTopic = new Map();
-    studentProgress.forEach(progress => {
-        const topicId = progress.question.topic_id;
-        if (!solvedByTopic.has(topicId)) {
-            solvedByTopic.set(topicId, new Set());
-        }
-        solvedByTopic.get(topicId).add(progress.question_id);
-    });
-    // Format response with optimized processing
-    const formattedTopics = topics.map((topic) => {
-        // Count unique questions assigned to this batch for this topic
-        const assignedQuestions = new Set();
-        topic.classes.forEach((cls) => {
-            cls.questionVisibility.forEach((qv) => {
-                // Only count questions that belong to this topic
-                if (qv.question.topic_id === topic.id) {
-                    assignedQuestions.add(qv.question.id);
-                }
-            });
-        });
-        // Get solved questions for this topic
-        const solvedQuestions = solvedByTopic.get(topic.id) || new Set();
-        // Find earliest class creation date, or null if no classes
-        const firstClass = topic.classes.length > 0
-            ? topic.classes.reduce((earliest, cls) => {
-                return !earliest || cls.created_at < earliest.created_at ? cls : earliest;
-            }, null)
-            : null;
-        return {
-            id: topic.id,
-            topic_name: topic.topic_name,
-            slug: topic.slug,
-            photo_url: topic.photo_url,
-            firstClassCreatedAt: firstClass?.created_at || null,
-            batchSpecificData: {
-                totalClasses: topic.classes.length,
-                totalQuestions: assignedQuestions.size,
-                solvedQuestions: solvedQuestions.size
-            }
-        };
-    });
-    // Sort by firstClassCreatedAt (newest first), topics without classes go to end
-    formattedTopics.sort((a, b) => {
-        // Both have classes - sort by date (newest first)
-        if (a.firstClassCreatedAt && b.firstClassCreatedAt) {
-            return new Date(b.firstClassCreatedAt).getTime() - new Date(a.firstClassCreatedAt).getTime();
-        }
-        // Only A has classes - A comes first
-        if (a.firstClassCreatedAt && !b.firstClassCreatedAt) {
-            return -1;
-        }
-        // Only B has classes - B comes first  
-        if (!a.firstClassCreatedAt && b.firstClassCreatedAt) {
-            return 1;
-        }
-        // Neither has classes - keep original order
-        return 0;
-    });
-    return {
-        topics: formattedTopics,
-        pagination: {
-            total: totalCount,
-            totalPages: Math.ceil(totalCount / limit),
-            page,
-            limit
-        }
-    };
-};
-exports.getTopicsWithBatchProgressService = getTopicsWithBatchProgressService;
-const getTopicOverviewWithClassesSummaryService = async ({ studentId, batchId, topicSlug, query, }) => {
-    // Get topic with batch-specific classes
-    const topic = await prisma_1.default.topic.findFirst({
-        where: { slug: topicSlug },
-        include: {
-            classes: {
-                where: {
-                    batch_id: batchId
-                },
-                include: {
-                    questionVisibility: {
-                        include: {
-                            question: {
-                                select: {
-                                    id: true
-                                }
-                            }
-                        }
-                    }
-                },
-                orderBy: { created_at: 'asc' }
-            }
-        }
-    });
+    console.timeEnd(`[${requestId}] Query: Fetch Topic + Paginated Classes`);
     if (!topic) {
         throw new ApiError_1.ApiError(errorMapper_1.HTTP_STATUS.NOT_FOUND, "Topic not found");
     }
-    // Get all question IDs assigned to this batch for this topic
-    const assignedQuestionIds = new Set();
-    topic.classes.forEach((cls) => {
-        cls.questionVisibility.forEach((qv) => {
-            assignedQuestionIds.add(qv.question.id);
-        });
+    // Get total classes count for pagination metadata
+    console.time(`[${requestId}] Query: Count Total Classes`);
+    const totalClassesCount = await prisma_1.default.class.count({
+        where: { topic_id: topic.id, batch_id: batchId }
     });
-    // Get student's solved questions for this batch only
-    const studentProgress = await prisma_1.default.studentProgress.findMany({
-        where: {
-            student_id: studentId,
-            question_id: { in: Array.from(assignedQuestionIds) }
-        },
-        include: {
-            question: {
-                select: {
-                    id: true
-                }
-            }
+    console.timeEnd(`[${requestId}] Query: Count Total Classes`);
+    // Get question counts for paginated classes using optimized query
+    const paginatedClassIds = topic.classes.map(cls => cls.id);
+    console.time(`[${requestId}] Query: Fetch Question Counts`);
+    const questionCounts = await prisma_1.default.questionVisibility.groupBy({
+        by: ['class_id'],
+        where: { class_id: { in: paginatedClassIds } },
+        _count: { question_id: true }
+    });
+    console.timeEnd(`[${requestId}] Query: Fetch Question Counts`);
+    // Create map of class_id to question count
+    const questionCountMap = new Map();
+    questionCounts.forEach(count => {
+        questionCountMap.set(count.class_id, count._count.question_id);
+    });
+    // Get question IDs for student progress (only for paginated classes)
+    console.time(`[${requestId}] Query: Fetch QuestionVisibility for Progress`);
+    const questionVisibilityRecords = await prisma_1.default.questionVisibility.findMany({
+        where: { class_id: { in: paginatedClassIds } },
+        select: { class_id: true, question_id: true }
+    });
+    console.timeEnd(`[${requestId}] Query: Fetch QuestionVisibility for Progress`);
+    // Group question IDs by class
+    const questionIdsByClass = new Map();
+    questionVisibilityRecords.forEach(qv => {
+        if (!questionIdsByClass.has(qv.class_id)) {
+            questionIdsByClass.set(qv.class_id, []);
         }
+        questionIdsByClass.get(qv.class_id).push(qv.question_id);
     });
-    // Create a Set of solved question IDs for quick lookup
+    const allQuestionIds = Array.from(new Set(questionVisibilityRecords.map(qv => qv.question_id)));
+    // Fetch student progress only for questions in paginated classes
+    console.time(`[${requestId}] Query: Fetch Student Progress`);
+    const studentProgress = await prisma_1.default.studentProgress.findMany({
+        where: { student_id: studentId, question_id: { in: allQuestionIds } },
+        select: { question_id: true }
+    });
+    console.timeEnd(`[${requestId}] Query: Fetch Student Progress`);
+    // Create Set of solved question IDs
     const solvedQuestionIds = new Set(studentProgress.map(progress => progress.question_id));
     // Format classes with summary data
+    console.time(`[${requestId}] Processing: Format Classes`);
     const classesSummary = topic.classes.map((cls) => {
-        // Count total questions for this class
-        const totalQuestions = cls.questionVisibility.length;
-        // Count solved questions for this class
-        const solvedQuestions = cls.questionVisibility.filter((qv) => solvedQuestionIds.has(qv.question.id)).length;
+        const classQuestionIds = questionIdsByClass.get(cls.id) || [];
+        const totalQuestions = questionCountMap.get(cls.id) || 0;
+        const solvedQuestions = classQuestionIds.filter(questionId => solvedQuestionIds.has(questionId)).length;
         return {
             id: cls.id,
             class_name: cls.class_name,
@@ -566,32 +521,41 @@ const getTopicOverviewWithClassesSummaryService = async ({ studentId, batchId, t
             solvedQuestions
         };
     });
-    // Apply pagination for classes
-    const page = parseInt(query?.page) || 1;
-    const limit = parseInt(query?.limit) || 10;
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedClasses = classesSummary.slice(startIndex, endIndex);
-    // Calculate overall topic progress (based on all classes, not just paginated)
-    const totalTopicQuestions = classesSummary.reduce((sum, cls) => sum + cls.totalQuestions, 0);
-    const totalSolvedQuestions = classesSummary.reduce((sum, cls) => sum + cls.solvedQuestions, 0);
+    console.timeEnd(`[${requestId}] Processing: Format Classes`);
+    // Calculate overall topic progress using single optimized query
+    console.time(`[${requestId}] Query: Overall Progress`);
+    const topicProgressData = await prisma_1.default.$queryRaw `
+    SELECT 
+      COUNT(DISTINCT q.id) as total_questions,
+      COUNT(DISTINCT CASE WHEN sp.student_id IS NOT NULL THEN q.id END) as solved_questions
+    FROM "Class" c
+    LEFT JOIN "QuestionVisibility" qv ON c.id = qv.class_id
+    LEFT JOIN "Question" q ON qv.question_id = q.id
+    LEFT JOIN "StudentProgress" sp ON q.id = sp.question_id AND sp.student_id = ${studentId}
+    WHERE c.topic_id = ${topic.id} AND c.batch_id = ${batchId}
+  `;
+    console.timeEnd(`[${requestId}] Query: Overall Progress`);
+    const totalTopicQuestions = Number(topicProgressData[0]?.total_questions) || 0;
+    const totalSolvedQuestions = Number(topicProgressData[0]?.solved_questions) || 0;
+    console.timeEnd(`[${requestId}] API /topics/:topicSlug TOTAL`);
+    console.log(`[${requestId}] END: getTopicOverviewWithClassesSummaryService`);
     return {
         id: topic.id,
         topic_name: topic.topic_name,
         slug: topic.slug,
         description: topic.description || null,
         photo_url: topic.photo_url || null,
-        classes: paginatedClasses,
+        classes: classesSummary,
         pagination: {
-            total: classesSummary.length,
-            totalPages: Math.ceil(classesSummary.length / limit),
+            total: totalClassesCount,
+            totalPages: Math.ceil(totalClassesCount / limit),
             page,
             limit,
-            hasNext: page < Math.ceil(classesSummary.length / limit),
+            hasNext: page < Math.ceil(totalClassesCount / limit),
             hasPrev: page > 1
         },
         overallProgress: {
-            totalClasses: classesSummary.length,
+            totalClasses: totalClassesCount,
             totalQuestions: totalTopicQuestions,
             solvedQuestions: totalSolvedQuestions
         }

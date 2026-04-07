@@ -137,121 +137,239 @@ const removeQuestionFromClassService = async ({ batchId, topicSlug, classSlug, q
 };
 exports.removeQuestionFromClassService = removeQuestionFromClassService;
 const getAllQuestionsWithFiltersService = async ({ studentId, batchId, filters }) => {
-    // Build where clause for question visibility (questions assigned to this batch)
-    const whereClause = {
+    console.log(' [API] /api/student/addedQuestions - Starting request');
+    const apiStartTime = Date.now();
+    // Build base where clause for question visibility (questions assigned to this batch)
+    const baseWhereClause = {
         class: {
             batch_id: batchId
         }
     };
-    // Get all question visibility for this batch
-    const questionVisibility = await prisma_1.default.questionVisibility.findMany({
-        where: whereClause,
-        include: {
-            question: {
-                include: {
-                    topic: {
-                        select: {
-                            id: true,
-                            topic_name: true,
-                            slug: true
+    // Build filtering conditions
+    const filterConditions = [];
+    // Search filter (question_name + topic_name)
+    if (filters.search) {
+        filterConditions.push({
+            OR: [
+                {
+                    question: {
+                        question_name: {
+                            contains: filters.search,
+                            mode: 'insensitive'
+                        }
+                    }
+                },
+                {
+                    question: {
+                        topic: {
+                            topic_name: {
+                                contains: filters.search,
+                                mode: 'insensitive'
+                            }
                         }
                     }
                 }
-            }
-        }
-    });
-    // Extract unique questions
-    const uniqueQuestions = new Map();
-    questionVisibility.forEach(qv => {
-        if (!uniqueQuestions.has(qv.question_id)) {
-            uniqueQuestions.set(qv.question_id, qv.question);
-        }
-    });
-    // Get student's solved questions and bookmarks
-    const questionIds = Array.from(uniqueQuestions.keys());
-    const [studentProgress, studentBookmarks] = await Promise.all([
-        // Get solved questions
-        prisma_1.default.studentProgress.findMany({
-            where: {
-                student_id: studentId,
-                question_id: { in: questionIds }
-            },
-            select: {
-                question_id: true,
-                sync_at: true
-            }
-        }),
-        // Get bookmarked questions
-        prisma_1.default.bookmark.findMany({
-            where: {
-                student_id: studentId,
-                question_id: { in: questionIds }
-            },
-            select: {
-                question_id: true
-            }
-        })
-    ]);
-    const solvedQuestionIds = new Set(studentProgress.map(progress => progress.question_id));
-    const bookmarkedQuestionIds = new Set(studentBookmarks.map(bookmark => bookmark.question_id));
-    console.log('🔍 DEBUG - studentBookmarks:', studentBookmarks);
-    console.log('🔍 DEBUG - bookmarkedQuestionIds:', Array.from(bookmarkedQuestionIds));
-    // Convert to array and apply filters
-    let questions = Array.from(uniqueQuestions.values()).map((question) => ({
-        ...question,
-        isSolved: solvedQuestionIds.has(question.id),
-        isBookmarked: bookmarkedQuestionIds.has(question.id),
-        syncAt: solvedQuestionIds.has(question.id)
-            ? studentProgress.find(p => p.question_id === question.id)?.sync_at
-            : null
-    }));
-    // Apply filters
-    if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        questions = questions.filter(q => q.question_name.toLowerCase().includes(searchLower) ||
-            q.topic.topic_name.toLowerCase().includes(searchLower));
+            ]
+        });
     }
+    // Topic filter
     if (filters.topic) {
-        questions = questions.filter(q => q.topic.slug === filters.topic);
+        filterConditions.push({
+            question: {
+                topic: {
+                    slug: filters.topic
+                }
+            }
+        });
     }
+    // Level filter
     if (filters.level) {
-        questions = questions.filter(q => q.level === filters.level.toUpperCase());
+        filterConditions.push({
+            question: {
+                level: filters.level.toUpperCase()
+            }
+        });
     }
+    // Platform filter
     if (filters.platform) {
-        questions = questions.filter(q => q.platform === filters.platform.toUpperCase());
+        filterConditions.push({
+            question: {
+                platform: filters.platform.toUpperCase()
+            }
+        });
     }
+    // Type filter
     if (filters.type) {
-        questions = questions.filter(q => q.type === filters.type.toUpperCase());
+        filterConditions.push({
+            question: {
+                type: filters.type.toUpperCase()
+            }
+        });
     }
+    // Solved/Unsolved filter using relation filtering
     if (filters.solved) {
         const isSolved = filters.solved === 'true';
-        questions = questions.filter(q => q.isSolved === isSolved);
+        if (isSolved) {
+            filterConditions.push({
+                question: {
+                    progress: {
+                        some: {
+                            student_id: studentId
+                        }
+                    }
+                }
+            });
+        }
+        else {
+            filterConditions.push({
+                question: {
+                    progress: {
+                        none: {
+                            student_id: studentId
+                        }
+                    }
+                }
+            });
+        }
     }
-    // Sort by creation date (newest first)
-    questions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    // Pagination
-    const total = questions.length;
-    const startIndex = (filters.page - 1) * filters.limit;
-    const endIndex = startIndex + filters.limit;
-    const paginatedQuestions = questions.slice(startIndex, endIndex);
-    // Get filter options for frontend (based on filtered questions only)
-    const filteredTopics = questions.map((q) => q.topic);
-    const topics = filteredTopics.filter((topic, index, self) => self.findIndex(t => t.id === topic.id) === index);
-    // Extract unique values from filtered questions
+    const offset = (filters.page - 1) * filters.limit;
+    // Build WHERE conditions for SQL
+    const whereConditions = [];
+    const params = [];
+    // Base condition: batch_id
+    whereConditions.push('c.batch_id = $' + (params.length + 1));
+    params.push(batchId);
+    // Search filter
+    if (filters.search) {
+        whereConditions.push('(q.question_name ILIKE $' + (params.length + 1) + ' OR t.topic_name ILIKE $' + (params.length + 2) + ')');
+        params.push('%' + filters.search + '%', '%' + filters.search + '%');
+    }
+    // Topic filter
+    if (filters.topic) {
+        whereConditions.push('t.slug = $' + (params.length + 1));
+        params.push(filters.topic);
+    }
+    // Level filter
+    if (filters.level) {
+        whereConditions.push('q.level = $' + (params.length + 1));
+        params.push(filters.level.toUpperCase());
+    }
+    // Platform filter
+    if (filters.platform) {
+        whereConditions.push('q.platform = $' + (params.length + 1));
+        params.push(filters.platform.toUpperCase());
+    }
+    // Type filter
+    if (filters.type) {
+        whereConditions.push('q.type = $' + (params.length + 1));
+        params.push(filters.type.toUpperCase());
+    }
+    // Solved/Unsolved filter
+    if (filters.solved) {
+        if (filters.solved === 'true') {
+            whereConditions.push('sp.question_id IS NOT NULL');
+        }
+        else {
+            whereConditions.push('sp.question_id IS NULL');
+        }
+    }
+    const whereClause = whereConditions.join(' AND ');
+    // Add studentId parameters for JOIN conditions
+    const studentIdParamIndex = params.length + 1;
+    const bookmarkIdParamIndex = params.length + 2;
+    params.push(studentId, studentId);
+    // Main data query with single JOIN
+    const dataQuery = `
+    SELECT DISTINCT 
+      q.id,
+      q.question_name,
+      q.question_link,
+      q.level,
+      q.platform,
+      q.type,
+      q.created_at,
+      t.id as topic_id,
+      t.topic_name,
+      t.slug,
+      CASE WHEN sp.question_id IS NOT NULL THEN true ELSE false END as "isSolved",
+      CASE WHEN b.question_id IS NOT NULL THEN true ELSE false END as "isBookmarked",
+      sp.sync_at
+    FROM "QuestionVisibility" qv
+    JOIN "Class" c ON qv.class_id = c.id
+    JOIN "Question" q ON qv.question_id = q.id
+    JOIN "Topic" t ON q.topic_id = t.id
+    LEFT JOIN "StudentProgress" sp ON q.id = sp.question_id AND sp.student_id = $${studentIdParamIndex}
+    LEFT JOIN "Bookmark" b ON q.id = b.question_id AND b.student_id = $${bookmarkIdParamIndex}
+    WHERE ${whereClause}
+    ORDER BY q.created_at DESC
+    LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+  `;
+    // Add limit and offset parameters
+    params.push(filters.limit, offset);
+    // Count query with same conditions
+    const countQuery = `
+    SELECT COUNT(DISTINCT q.id)
+    FROM "QuestionVisibility" qv
+    JOIN "Class" c ON qv.class_id = c.id
+    JOIN "Question" q ON qv.question_id = q.id
+    JOIN "Topic" t ON q.topic_id = t.id
+    LEFT JOIN "StudentProgress" sp ON q.id = sp.question_id AND sp.student_id = $${studentIdParamIndex}
+    LEFT JOIN "Bookmark" b ON q.id = b.question_id AND b.student_id = $${bookmarkIdParamIndex}
+    WHERE ${whereClause}
+  `;
+    const dbStartTime = Date.now();
+    const [paginatedQuestions, totalCount] = await Promise.all([
+        prisma_1.default.$queryRawUnsafe(dataQuery, ...params),
+        prisma_1.default.$queryRawUnsafe(countQuery, ...params.slice(0, -2)) // Exclude limit/offset for count
+    ]);
+    // Convert BigInt to Number for JSON serialization
+    const totalCountNumber = Number(totalCount[0]?.count || 0);
+    const dbQueryTime = Date.now() - dbStartTime;
+    console.log(`🗄️ [DB] RAW SQL queries completed in ${dbQueryTime}ms`);
+    // Map RAW SQL results to exact previous response structure
+    const questions = paginatedQuestions.map((row) => {
+        return {
+            id: row.id,
+            question_name: row.question_name,
+            question_link: row.question_link,
+            level: row.level,
+            platform: row.platform,
+            type: row.type,
+            created_at: row.created_at,
+            topic: {
+                id: row.topic_id,
+                topic_name: row.topic_name,
+                slug: row.slug
+            },
+            isSolved: row.isSolved,
+            isBookmarked: row.isBookmarked,
+            syncAt: row.sync_at
+        };
+    });
+    // Get filter options from paginated results only (no extra query needed)
+    const uniqueTopics = questions.map((q) => q.topic);
+    const topics = uniqueTopics.filter((topic, index, self) => self.findIndex((t) => t.id === topic.id) === index);
+    // Extract unique values from paginated results
     const levels = [...new Set(questions.map((q) => q.level))].sort();
     const platforms = [...new Set(questions.map((q) => q.platform))].sort();
     const types = [...new Set(questions.map((q) => q.type))].sort();
-    // Also include all available enum values for complete filter options
+    // Include all available enum values for complete filter options
     const allLevels = ['EASY', 'MEDIUM', 'HARD'];
     const allPlatforms = ['LEETCODE', 'GFG', 'OTHER', 'INTERVIEWBIT'];
     const allTypes = ['HOMEWORK', 'CLASSWORK'];
+    // ...
+    // Calculate solved count from paginated results
+    const solvedCount = questions.filter(q => q.isSolved).length;
+    console.log('📤 [API] Preparing response...');
+    const totalApiTime = Date.now() - apiStartTime;
+    console.log(`⏱️ [API] Total API time: ${totalApiTime}ms (DB: ${dbQueryTime}ms, Processing: ${totalApiTime - dbQueryTime}ms)`);
     return {
-        questions: paginatedQuestions,
+        questions,
         pagination: {
             page: filters.page,
             limit: filters.limit,
-            totalQuestions: total,
-            totalPages: Math.ceil(total / filters.limit)
+            totalQuestions: totalCountNumber,
+            totalPages: Math.ceil(totalCountNumber / filters.limit)
         },
         filters: {
             topics,
@@ -260,13 +378,13 @@ const getAllQuestionsWithFiltersService = async ({ studentId, batchId, filters }
             types: allTypes // All enum values from database
         },
         stats: {
-            total,
-            solved: questions.filter(q => q.isSolved).length
+            total: totalCountNumber,
+            solved: solvedCount
         }
     };
 };
 exports.getAllQuestionsWithFiltersService = getAllQuestionsWithFiltersService;
-// 🔄 Helper function to update batch question counts
+// Helper function to update batch question counts
 async function updateBatchQuestionCounts(batchId) {
     try {
         // Get all classes for this batch with their assigned questions

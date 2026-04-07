@@ -39,12 +39,15 @@ exports.createClassInTopic = (0, asyncHandler_1.asyncHandler)(async (req, res) =
             throw new ApiError_1.ApiError(400, "Invalid topic slug");
         }
         const { class_name, description, pdf_url, duration_minutes, class_date, } = req.body;
+        // Handle PDF file upload
+        const pdf_file = req.file;
         const newClass = await (0, class_service_1.createClassInTopicService)({
             batchId: batch.id,
             topicSlug: topicSlugParam,
             class_name,
             description,
             pdf_url,
+            pdf_file,
             duration_minutes,
             class_date,
         });
@@ -99,6 +102,7 @@ exports.updateClass = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
             topicSlug: topicSlugParam,
             classSlug,
             ...req.body,
+            pdf_file: req.file, // Handle PDF file upload
         });
         return res.json({
             message: "Class updated successfully",

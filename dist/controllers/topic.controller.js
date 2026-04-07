@@ -83,6 +83,8 @@ exports.getTopicsWithBatchProgress = (0, asyncHandler_1.asyncHandler)(async (req
 });
 // Student-specific controller - get topic overview with classes summary
 exports.getTopicOverviewWithClassesSummary = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    const requestId = Math.random().toString(36).substr(2, 9);
+    console.log(`[${requestId}] CONTROLLER START: getTopicOverviewWithClassesSummary`);
     // Get student info from middleware (extractStudentInfo)
     const student = req.student;
     const batchId = req.batchId;
@@ -90,15 +92,18 @@ exports.getTopicOverviewWithClassesSummary = (0, asyncHandler_1.asyncHandler)(as
     const studentId = student?.id;
     // Ensure topicSlug is a string (not string array)
     const slug = Array.isArray(topicSlug) ? topicSlug[0] : topicSlug;
+    console.log(`[${requestId}] CONTROLLER: studentId=${studentId}, batchId=${batchId}, topicSlug=${slug}`);
     if (!studentId || !batchId || !slug) {
         throw new ApiError_1.ApiError(400, "Student authentication and topic slug required", [], "REQUIRED_FIELD");
     }
+    console.log(`[${requestId}] CONTROLLER: Calling service`);
     const topicOverview = await (0, topic_service_1.getTopicOverviewWithClassesSummaryService)({
         studentId,
         batchId,
         topicSlug: slug,
         query: req.query,
     });
+    console.log(`[${requestId}] CONTROLLER: Sending response`);
     return res.json(topicOverview);
 });
 exports.createTopicsBulk = (0, asyncHandler_1.asyncHandler)(async (req, res) => {

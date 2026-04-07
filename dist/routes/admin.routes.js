@@ -12,6 +12,7 @@ const question_controller_1 = require("../controllers/question.controller");
 const questionBulk_controller_1 = require("../controllers/questionBulk.controller");
 const imageUpload_middleware_1 = require("../middlewares/imageUpload.middleware");
 const upload_middleware_1 = require("../middlewares/upload.middleware");
+const pdfUpload_middleware_1 = require("../middlewares/pdfUpload.middleware");
 const admin_controller_1 = require("../controllers/admin.controller");
 const csv_controller_1 = require("../controllers/csv.controller");
 const leaderboard_controller_1 = require("../controllers/leaderboard.controller");
@@ -71,10 +72,10 @@ router.get("/:batchSlug/topics", topic_controller_1.getTopicsForBatch);
 // List classes of a topic
 router.get("/:batchSlug/topics/:topicSlug/classes", class_controller_1.getClassesByTopic);
 // Create class under topic
-router.post("/:batchSlug/topics/:topicSlug/classes", role_middleware_1.isTeacherOrAbove, class_controller_1.createClassInTopic);
+router.post("/:batchSlug/topics/:topicSlug/classes", role_middleware_1.isTeacherOrAbove, pdfUpload_middleware_1.uploadPdf, class_controller_1.createClassInTopic);
 // Get single class (topic context required)
 router.get("/:batchSlug/topics/:topicSlug/classes/:classSlug", class_controller_1.getClassDetails);
-router.patch("/:batchSlug/topics/:topicSlug/classes/:classSlug", role_middleware_1.isTeacherOrAbove, class_controller_1.updateClass);
+router.patch("/:batchSlug/topics/:topicSlug/classes/:classSlug", role_middleware_1.isTeacherOrAbove, pdfUpload_middleware_1.uploadPdf, class_controller_1.updateClass);
 router.delete("/:batchSlug/topics/:topicSlug/classes/:classSlug", role_middleware_1.isTeacherOrAbove, class_controller_1.deleteClass);
 // Question assignment routes (topic context required)
 router.post("/:batchSlug/topics/:topicSlug/classes/:classSlug/questions", role_middleware_1.isTeacherOrAbove, questionVisibility_controller_1.assignQuestionsToClass);

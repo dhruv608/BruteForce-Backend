@@ -13,11 +13,11 @@ class S3Service {
     /**
      * Upload file to S3 bucket
      */
-    static async uploadFile(file, folder = 'uploads') {
+    static async uploadFile(file, folder = 'uploads', customFileName) {
         try {
-            // Generate unique filename
+            // Generate filename (custom if provided, otherwise unique)
             const fileExtension = path_1.default.extname(file.originalname);
-            const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
+            const fileName = customFileName || `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
             const key = `${folder}/${fileName}`;
             // Upload parameters
             const params = {

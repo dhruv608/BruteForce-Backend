@@ -258,7 +258,6 @@ export const getStudentReportService = async (username: string) => {
                                 id: true,
                                 platform: true,
                                 level: true,
-                                type: true,
                                 topic_id: true,
                                 topic: {
                                     select: {
@@ -278,7 +277,7 @@ export const getStudentReportService = async (username: string) => {
             throw new ApiError(400, "Student not found");
         }
 
-        const [solvedQuestions, batchQuestions, topics] = await Promise.all([
+        const [solvedQuestions, visibilityTypes, batchQuestions, topics] = await Promise.all([
 
             // solved questions by student
             prisma.studentProgress.findMany({
@@ -289,10 +288,25 @@ export const getStudentReportService = async (username: string) => {
                             id: true,
                             platform: true,
                             level: true,
-                            type: true,
                             topic_id: true
                         }
                     }
+                }
+            }),
+
+            // get visibility types for solved questions in student's batch
+            prisma.questionVisibility.findMany({
+                where: {
+                    class: { batch_id: student.batch_id || undefined },
+                    question: {
+                        progress: {
+                            some: { student_id: student.id }
+                        }
+                    }
+                },
+                select: {
+                    question_id: true,
+                    type: true
                 }
             }),
 
@@ -325,6 +339,9 @@ export const getStudentReportService = async (username: string) => {
         // ---------- stats calculation ----------
 
         let totalSolved = solvedQuestions.length;
+
+        // Create visibility type map
+        const visibilityTypeMap = new Map(visibilityTypes.map(v => [v.question_id, v.type]));
 
         const platformStats = {
             leetcode: {
@@ -375,8 +392,9 @@ export const getStudentReportService = async (username: string) => {
                 if (q.level === "MEDIUM") platformStats[platform].medium++;
                 if (q.level === "HARD") platformStats[platform].hard++;
 
-                if (q.type === "HOMEWORK") platformStats[platform].homework++;
-                if (q.type === "CLASSWORK") platformStats[platform].classwork++;
+                const qType = visibilityTypeMap.get(q.id) || 'HOMEWORK';
+                if (qType === "HOMEWORK") platformStats[platform].homework++;
+                if (qType === "CLASSWORK") platformStats[platform].classwork++;
             }
 
             // existing global stats
@@ -384,8 +402,9 @@ export const getStudentReportService = async (username: string) => {
             if (q.level === "MEDIUM") difficultyStats.medium++;
             if (q.level === "HARD") difficultyStats.hard++;
 
-            if (q.type === "HOMEWORK") typeStats.homework++;
-            if (q.type === "CLASSWORK") typeStats.classwork++;
+            const qType2 = visibilityTypeMap.get(q.id) || 'HOMEWORK';
+            if (qType2 === "HOMEWORK") typeStats.homework++;
+            if (qType2 === "CLASSWORK") typeStats.classwork++;
 
             solvedTopicMap[q.topic_id] =
                 (solvedTopicMap[q.topic_id] || 0) + 1;

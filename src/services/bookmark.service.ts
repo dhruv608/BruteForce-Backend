@@ -52,7 +52,6 @@ export const getBookmarksService = async (
             question_link: true,
             platform: true,
             level: true,
-            type: true,
             progress: {
               where: {
                 student_id: studentId
@@ -80,7 +79,6 @@ export const getBookmarksService = async (
         question_link: string;
         platform: string;
         level: string;
-        type: string;
         progress: Array<{ id: number }>;
       };
     }>;

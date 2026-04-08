@@ -110,9 +110,6 @@ const updateBookmark = async (req, res) => {
         if (!questionId) {
             throw new ApiError_1.ApiError(400, "Question ID is required", [], "VALIDATION_ERROR");
         }
-        if (!description) {
-            throw new ApiError_1.ApiError(400, "Description is required", [], "VALIDATION_ERROR");
-        }
         if (typeof description !== 'string') {
             throw new ApiError_1.ApiError(400, "Description must be a string", [], "VALIDATION_ERROR");
         }

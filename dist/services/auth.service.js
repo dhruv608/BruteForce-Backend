@@ -3,8 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetPassword = exports.verifyOTP = exports.sendPasswordResetOTP = exports.logoutAdmin = exports.logoutStudent = exports.googleAuth = exports.refreshAccessToken = exports.loginAdmin = exports.registerAdmin = exports.loginStudent = exports.registerStudent = void 0;
+exports.resetPassword = exports.verifyOTP = exports.sendPasswordResetOTP = exports.logoutAdmin = exports.logoutStudent = exports.googleAuth = exports.refreshAccessToken = exports.loginAdmin = exports.loginStudent = exports.registerStudent = exports.registerAdmin = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
+const admin_service_1 = require("./admin.service");
 const password_util_1 = require("../utils/password.util");
 const jwt_util_1 = require("../utils/jwt.util");
 const google_auth_library_1 = require("google-auth-library");
@@ -14,6 +15,42 @@ const emailValidation_util_1 = require("../utils/emailValidation.util");
 const passwordValidator_util_1 = require("../utils/passwordValidator.util");
 const ApiError_1 = require("../utils/ApiError");
 const googleClient = new google_auth_library_1.OAuth2Client(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
+const registerAdmin = async (data) => {
+    const { currentUserRole, ...adminData } = data;
+    // Only SUPERADMIN can create admins
+    if (currentUserRole !== 'SUPERADMIN') {
+        throw new ApiError_1.ApiError(403, 'Only Super Admin can register new admins', [], "FORBIDDEN");
+    }
+    // Create admin using the existing service
+    const admin = await (0, admin_service_1.createAdminService)(adminData);
+    // Generate tokens
+    const accessToken = (0, jwt_util_1.generateAccessToken)({
+        id: admin.id,
+        email: admin.email,
+        role: admin.role,
+        userType: 'admin',
+    });
+    const refreshToken = (0, jwt_util_1.generateRefreshToken)({
+        id: admin.id,
+        userType: 'admin',
+    });
+    // Update refresh token in database
+    await prisma_1.default.admin.update({
+        where: { id: admin.id },
+        data: { refresh_token: refreshToken },
+    });
+    return {
+        user: {
+            id: admin.id,
+            name: admin.name,
+            email: admin.email,
+            role: admin.role,
+        },
+        accessToken,
+        refreshToken
+    };
+};
+exports.registerAdmin = registerAdmin;
 const registerStudent = async (data) => {
     const { name, email, username, password, enrollment_id, batch_id, leetcode_id, gfg_id } = data;
     // Validation
@@ -165,64 +202,6 @@ const loginStudent = async (credentials) => {
     };
 };
 exports.loginStudent = loginStudent;
-const registerAdmin = async (data) => {
-    const { name, email, password, role, currentUserRole } = data;
-    if (!name || !email || !password || !role) {
-        throw new ApiError_1.ApiError(400, 'All fields are required');
-    }
-    // Check existing admin
-    const existingAdmin = await prisma_1.default.admin.findFirst({
-        where: { email },
-    });
-    if (existingAdmin) {
-        throw new ApiError_1.ApiError(400, 'Email already exists');
-    }
-    if (currentUserRole !== "SUPERADMIN") {
-        throw new ApiError_1.ApiError(403, "Only SuperAdmin can create admin", [], "FORBIDDEN");
-    }
-    if (role !== "TEACHER" && role !== "SUPERADMIN") {
-        throw new ApiError_1.ApiError(400, "Invalid role type");
-    }
-    // Validate password strength
-    (0, passwordValidator_util_1.validatePasswordForAuth)(password);
-    const password_hash = await (0, password_util_1.hashPassword)(password);
-    const admin = await prisma_1.default.admin.create({
-        data: {
-            name,
-            email,
-            password_hash,
-            role,
-        },
-        select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            created_at: true,
-        },
-    });
-    const accessToken = (0, jwt_util_1.generateAccessToken)({
-        id: admin.id,
-        email: admin.email,
-        role: admin.role,
-        userType: 'admin',
-    });
-    const refreshToken = (0, jwt_util_1.generateRefreshToken)({
-        id: admin.id,
-        userType: 'admin',
-    });
-    // Update refresh token in database
-    await prisma_1.default.admin.update({
-        where: { id: admin.id },
-        data: { refresh_token: refreshToken },
-    });
-    return {
-        user: admin,
-        accessToken,
-        refreshToken
-    };
-};
-exports.registerAdmin = registerAdmin;
 const loginAdmin = async (credentials) => {
     const { email, password } = credentials;
     if (!email || !password) {

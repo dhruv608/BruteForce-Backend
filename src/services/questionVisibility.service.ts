@@ -1,21 +1,26 @@
 import prisma from "../config/prisma";
 import { ApiError } from "../utils/ApiError";
 
+interface AssignQuestionItem {
+  question_id: number;
+  type: "HOMEWORK" | "CLASSWORK";
+}
+
 interface AssignQuestionsInput {
   batchId: number;
   topicSlug: string;
   classSlug: string;
-  questionIds: number[];
+  questions: AssignQuestionItem[];
 }
 
 export const assignQuestionsToClassService = async ({
   batchId,
   topicSlug,
   classSlug,
-  questionIds,
+  questions,
 }: AssignQuestionsInput) => {
 
-  if (!questionIds || questionIds.length === 0) {
+  if (!questions || questions.length === 0) {
     throw new ApiError(400, "No questions provided");
   }
 
@@ -40,9 +45,10 @@ export const assignQuestionsToClassService = async ({
     throw new ApiError(400, "Class not found in this topic and batch");
   }
 
-  const data = questionIds.map((qid) => ({
+  const data = questions.map((q) => ({
     class_id: cls.id,
-    question_id: qid,
+    question_id: q.question_id,
+    type: q.type,
   }));
 
   await prisma.questionVisibility.createMany({
@@ -53,7 +59,7 @@ export const assignQuestionsToClassService = async ({
   // Update batch question counts after assignment
   await updateBatchQuestionCounts(batchId);
 
-  return { assignedCount: questionIds.length };
+  return { assignedCount: questions.length };
 };
 
 interface GetAssignedInput {
@@ -118,6 +124,9 @@ export const getAssignedQuestionsOfClassService = async ({
     prisma.questionVisibility.findMany({
       where: whereClause,
       select: {
+        id: true,
+        type: true,
+        assigned_at: true,
         question: {
           select: {
             id: true,
@@ -125,7 +134,6 @@ export const getAssignedQuestionsOfClassService = async ({
             question_link: true,
             platform: true,
             level: true,
-            type: true,
             created_at: true,
             topic: {
               select: { topic_name: true, slug: true },
@@ -142,7 +150,12 @@ export const getAssignedQuestionsOfClassService = async ({
   ]);
 
   const totalPages = Math.ceil(total / safeLimit);
-  const questions = assigned.map((qv) => qv.question);
+  const questions = assigned.map((qv) => ({
+    ...qv.question,
+    visibility_id: qv.id,
+    type: qv.type,
+    assigned_at: qv.assigned_at,
+  }));
 
   return {
     data: questions,
@@ -293,12 +306,10 @@ export const getAllQuestionsWithFiltersService = async ({
     });
   }
 
-  // Type filter
+  // Type filter - now filters on QuestionVisibility.type
   if (filters.type) {
     filterConditions.push({
-      question: {
-        type: filters.type.toUpperCase()
-      }
+      type: filters.type.toUpperCase()
     });
   }
 
@@ -362,9 +373,9 @@ export const getAllQuestionsWithFiltersService = async ({
     params.push(filters.platform.toUpperCase());
   }
   
-  // Type filter
+  // Type filter - now filters on QuestionVisibility.type
   if (filters.type) {
-    whereConditions.push('q.type = $' + (params.length + 1) + '::text::"QuestionType"');
+    whereConditions.push('qv.type = $' + (params.length + 1) + '::text::"QuestionType"');
     params.push(filters.type.toUpperCase());
   }
   
@@ -401,7 +412,7 @@ export const getAllQuestionsWithFiltersService = async ({
       q.question_link,
       q.level,
       q.platform,
-      q.type,
+      qv.type,
       q.created_at,
       t.id as topic_id,
       t.topic_name,
@@ -508,6 +519,63 @@ export const getAllQuestionsWithFiltersService = async ({
       solved: solvedCount
     }
   };
+};
+
+interface UpdateVisibilityTypeInput {
+  batchId: number;
+  topicSlug: string;
+  classSlug: string;
+  visibilityId: number;
+  type: "HOMEWORK" | "CLASSWORK";
+}
+
+export const updateQuestionVisibilityTypeService = async ({
+  batchId,
+  topicSlug,
+  classSlug,
+  visibilityId,
+  type
+}: UpdateVisibilityTypeInput) => {
+  // Find topic first
+  const topic = await prisma.topic.findUnique({
+    where: { slug: topicSlug },
+  });
+
+  if (!topic) {
+    throw new ApiError(400, "Topic not found");
+  }
+
+  const cls = await prisma.class.findFirst({
+    where: {
+      slug: classSlug,
+      batch_id: batchId,
+      topic_id: topic.id,
+    },
+  });
+
+  if (!cls) {
+    throw new ApiError(400, "Class not found in this topic and batch");
+  }
+
+  // Verify the visibility record exists and belongs to this class
+  const visibility = await prisma.questionVisibility.findFirst({
+    where: {
+      id: visibilityId,
+      class_id: cls.id,
+    },
+  });
+
+  if (!visibility) {
+    throw new ApiError(404, "Question visibility record not found");
+  }
+
+  // Update the type
+  const updated = await prisma.questionVisibility.update({
+    where: { id: visibilityId },
+    data: { type },
+  });
+
+  return updated;
 };
 
 // Helper function to update batch question counts

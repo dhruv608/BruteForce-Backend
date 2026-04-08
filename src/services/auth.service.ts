@@ -1,4 +1,5 @@
 import prisma from '../config/prisma';
+import { createAdminService } from './admin.service';
 import { hashPassword, comparePassword } from '../utils/password.util';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.util';
 import { OAuth2Client } from 'google-auth-library';
@@ -12,6 +13,56 @@ const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET
 );
+
+export const registerAdmin = async (data: {
+  name: string;
+  email: string;
+  password: string;
+  role?: string;
+  city_id?: number;
+  batch_id?: number;
+  currentUserRole?: string;
+}) => {
+  const { currentUserRole, ...adminData } = data;
+
+  // Only SUPERADMIN can create admins
+  if (currentUserRole !== 'SUPERADMIN') {
+    throw new ApiError(403, 'Only Super Admin can register new admins', [], "FORBIDDEN");
+  }
+
+  // Create admin using the existing service
+  const admin = await createAdminService(adminData);
+
+  // Generate tokens
+  const accessToken = generateAccessToken({
+    id: admin.id,
+    email: admin.email,
+    role: admin.role,
+    userType: 'admin',
+  });
+
+  const refreshToken = generateRefreshToken({
+    id: admin.id,
+    userType: 'admin',
+  });
+
+  // Update refresh token in database
+  await prisma.admin.update({
+    where: { id: admin.id },
+    data: { refresh_token: refreshToken },
+  });
+
+  return {
+    user: {
+      id: admin.id,
+      name: admin.name,
+      email: admin.email,
+      role: admin.role,
+    },
+    accessToken,
+    refreshToken
+  };
+};
 
 export const registerStudent = async (data: {
   name: string;

@@ -229,7 +229,7 @@ export const bulkTestUploadQuestions = asyncHandler(async (req: Request, res: Re
   }
 
   // Validate required columns
-  const requiredColumns = ['question_name', 'question_link', 'level', 'type', 'topic_slug'];
+  const requiredColumns = ['question_name', 'question_link', 'level', 'topic_slug'];
   const csvColumns = Object.keys(results[0]);
   
   const missingColumns = requiredColumns.filter(col => !csvColumns.includes(col));
@@ -239,7 +239,7 @@ export const bulkTestUploadQuestions = asyncHandler(async (req: Request, res: Re
 
   // Validate and format each question
   const validatedQuestions = results.map((row: any, index: number) => {
-    const { question_name, question_link, level, type, topic_slug } = row;
+    const { question_name, question_link, level, topic_slug } = row;
 
     if (!question_name || !question_name.trim()) {
       throw new ApiError(400, `Row ${index + 2}: question_name is required`, [], "REQUIRED_FIELD");
@@ -250,9 +250,6 @@ export const bulkTestUploadQuestions = asyncHandler(async (req: Request, res: Re
     if (!level || !['EASY', 'MEDIUM', 'HARD'].includes(level.toUpperCase().trim())) {
       throw new ApiError(400, `Row ${index + 2}: level must be EASY, MEDIUM, or HARD`, [], "INVALID_VALUE");
     }
-    if (!type || !['HOMEWORK', 'CLASSWORK'].includes(type.toUpperCase().trim())) {
-      throw new ApiError(400, `Row ${index + 2}: type must be HOMEWORK or CLASSWORK`, [], "INVALID_VALUE");
-    }
     if (!topic_slug || !topic_slug.trim()) {
       throw new ApiError(400, `Row ${index + 2}: topic_slug is required`, [], "REQUIRED_FIELD");
     }
@@ -261,7 +258,6 @@ export const bulkTestUploadQuestions = asyncHandler(async (req: Request, res: Re
       question_name: question_name.trim(),
       question_link: question_link.trim(),
       level: level.toUpperCase().trim() as 'EASY' | 'MEDIUM' | 'HARD',
-      type: type.toUpperCase().trim() as 'HOMEWORK' | 'CLASSWORK',
       topic_slug: topic_slug.trim(),
     };
   });
@@ -286,7 +282,6 @@ export const bulkTestUploadQuestions = asyncHandler(async (req: Request, res: Re
     question_name: q.question_name,
     question_link: q.question_link,
     level: q.level,
-    type: q.type,
     topic_id: topicMap.get(q.topic_slug)!, // We know this exists after validation
     platform: detectPlatform(q.question_link), // Detect platform from question link
   }));

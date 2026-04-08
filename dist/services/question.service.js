@@ -18,7 +18,7 @@ const detectPlatform = (link) => {
     return client_1.Platform.OTHER;
 };
 exports.detectPlatform = detectPlatform;
-const createQuestionService = async ({ question_name, question_link, topic_id, platform, level = "MEDIUM", type = "HOMEWORK", }) => {
+const createQuestionService = async ({ question_name, question_link, topic_id, platform, level = "MEDIUM", }) => {
     if (!question_name || !question_link || !topic_id) {
         throw new ApiError_1.ApiError(400, "All required fields must be provided");
     }
@@ -47,45 +47,35 @@ const createQuestionService = async ({ question_name, question_link, topic_id, p
             topic_id,
             platform: finalPlatform,
             level,
-            type,
         },
     });
     return question;
 };
 exports.createQuestionService = createQuestionService;
-const getAllQuestionsService = async ({ topicSlug, level, platform, type, search, page = 1, limit = 10, }) => {
+const getAllQuestionsService = async ({ topicSlug, level, platform, search, page = 1, limit = 10, }) => {
     const where = {};
-    // 🔎 Topic filter
+    //  Pagination safety - enforce max limit
+    const validatedLimit = Math.min(Math.max(limit, 1), 100);
+    const skip = (page - 1) * validatedLimit;
+    //  Topic filter (using relation filter instead of separate query)
     if (topicSlug && topicSlug !== 'all') {
-        const topic = await prisma_1.default.topic.findUnique({
-            where: { slug: topicSlug },
-            select: { id: true }
-        });
-        if (!topic) {
-            throw new ApiError_1.ApiError(400, "Topic not found");
-        }
-        where.topic_id = topic.id;
+        where.topic = { slug: topicSlug };
     }
-    // 🔎 Level filter
+    //  Level filter
     if (level) {
         where.level = level;
     }
-    // 🔎 Platform filter
+    //  Platform filter
     if (platform) {
         where.platform = platform;
     }
-    // 🔎 Type filter
-    if (type) {
-        where.type = type;
-    }
-    // 🔎 Search filter
+    //  Search filter
     if (search) {
         where.question_name = {
             contains: search,
             mode: "insensitive",
         };
     }
-    const skip = (page - 1) * limit;
     const [questions, total] = await prisma_1.default.$transaction([
         prisma_1.default.question.findMany({
             where,
@@ -101,22 +91,32 @@ const getAllQuestionsService = async ({ topicSlug, level, platform, type, search
                 created_at: "desc",
             },
             skip,
-            take: limit,
+            take: validatedLimit,
         }),
         prisma_1.default.question.count({ where }),
     ]);
+    // 🔎 Validate topic exists if topic filter was applied but no results
+    if (topicSlug && topicSlug !== 'all' && questions.length === 0) {
+        const topicExists = await prisma_1.default.topic.count({
+            where: { slug: topicSlug },
+            take: 1,
+        });
+        if (topicExists === 0) {
+            throw new ApiError_1.ApiError(400, "Topic not found");
+        }
+    }
     return {
         data: questions,
         pagination: {
             total,
             page,
-            limit,
-            totalPages: Math.ceil(total / limit),
+            limit: validatedLimit,
+            totalPages: Math.ceil(total / validatedLimit),
         },
     };
 };
 exports.getAllQuestionsService = getAllQuestionsService;
-const updateQuestionService = async ({ id, question_name, question_link, topic_id, level, platform, type, }) => {
+const updateQuestionService = async ({ id, question_name, question_link, topic_id, level, platform, }) => {
     const existing = await prisma_1.default.question.findUnique({
         where: { id },
     });
@@ -152,7 +152,6 @@ const updateQuestionService = async ({ id, question_name, question_link, topic_i
             topic_id: finalTopicId,
             level: level ?? existing.level,
             platform: platform ?? existing.platform,
-            type: type ?? existing.type,
         },
     });
     return updated;
@@ -256,7 +255,6 @@ const getAssignedQuestionsService = async (query) => {
                 question_name: true,
                 platform: true,
                 level: true,
-                type: true,
                 topic: {
                     select: {
                         topic_name: true
@@ -269,7 +267,6 @@ const getAssignedQuestionsService = async (query) => {
         // -----------------------------
         const platformStats = { leetcode: 0, gfg: 0 };
         const difficultyStats = { easy: 0, medium: 0, hard: 0 };
-        const typeStats = { homework: 0, classwork: 0 };
         questions.forEach(q => {
             if (q.platform === "LEETCODE")
                 platformStats.leetcode++;
@@ -281,17 +278,12 @@ const getAssignedQuestionsService = async (query) => {
                 difficultyStats.medium++;
             if (q.level === "HARD")
                 difficultyStats.hard++;
-            if (q.type === "HOMEWORK")
-                typeStats.homework++;
-            if (q.type === "CLASSWORK")
-                typeStats.classwork++;
         });
         return {
             totalQuestions: questions.length,
             analytics: {
                 platforms: platformStats,
                 difficulty: difficultyStats,
-                type: typeStats
             },
             questions
         };

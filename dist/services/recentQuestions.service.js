@@ -5,7 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getRecentQuestionsService = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
-const getRecentQuestionsService = async ({ batchId, date }) => {
+// Default pagination settings - hardcoded in service
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 12; // 10-12 items per page as requested
+const getRecentQuestionsService = async ({ batchId, date, page = DEFAULT_PAGE, limit = DEFAULT_LIMIT }) => {
     // Calculate date range for the specific date
     let startDate;
     let endDate;
@@ -25,7 +28,21 @@ const getRecentQuestionsService = async ({ batchId, date }) => {
         endDate = new Date(today);
         endDate.setHours(23, 59, 59, 999);
     }
-    // Get questions assigned for this specific date
+    // Calculate skip for pagination
+    const skip = (page - 1) * limit;
+    // Get total count for pagination metadata (using queryRaw for distinct count)
+    const countResult = await prisma_1.default.$queryRaw `
+    SELECT COUNT(DISTINCT question_id) as count
+    FROM "QuestionVisibility"
+    WHERE assigned_at >= ${startDate}
+      AND assigned_at <= ${endDate}
+      AND class_id IN (
+        SELECT id FROM "Class" WHERE batch_id = ${batchId}
+      )
+  `;
+    const totalCount = Number(countResult[0]?.count || 0);
+    // Get paginated questions from database using Prisma skip/take
+    // This prevents loading all questions into memory
     const recentQuestions = await prisma_1.default.questionVisibility.findMany({
         where: {
             class: {
@@ -55,10 +72,12 @@ const getRecentQuestionsService = async ({ batchId, date }) => {
         orderBy: {
             assigned_at: 'desc'
         },
-        distinct: ['question_id'] // Avoid duplicate questions
+        distinct: ['question_id'],
+        skip, // Prisma skip - database level pagination
+        take: limit // Prisma take - only fetch requested items
     });
     // Format response
-    return recentQuestions.map((qv) => ({
+    const questions = recentQuestions.map((qv) => ({
         question_id: qv.question.id,
         question_name: qv.question.question_name,
         difficulty: qv.question.level,
@@ -66,5 +85,16 @@ const getRecentQuestionsService = async ({ batchId, date }) => {
         class_slug: qv.class.slug,
         assigned_at: qv.assigned_at
     }));
+    return {
+        questions,
+        pagination: {
+            page,
+            limit,
+            total: totalCount,
+            totalPages: Math.ceil(totalCount / limit),
+            hasNext: page < Math.ceil(totalCount / limit),
+            hasPrev: page > 1
+        }
+    };
 };
 exports.getRecentQuestionsService = getRecentQuestionsService;

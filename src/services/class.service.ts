@@ -743,7 +743,7 @@ export const getClassDetailsWithFullQuestionsService = async ({
       
       // Parallel queries: Question data, Student Progress, Bookmarks, and Total Count
       console.log("Executing Parallel Queries");
-      const [questionsData, studentProgress, studentBookmarks, totalQuestions] = await Promise.all([
+      const [questionsData, visibilityData, studentProgress, studentBookmarks, totalQuestions] = await Promise.all([
         // Fetch question data
         prisma.question.findMany({
           where: {
@@ -755,8 +755,18 @@ export const getClassDetailsWithFullQuestionsService = async ({
             question_link: true,
             platform: true,
             level: true,
-            type: true,
             topic_id: true
+          }
+        }),
+        // Fetch visibility data for type
+        prisma.questionVisibility.findMany({
+          where: {
+            class_id: classData.id,
+            question_id: { in: questionIds }
+          },
+          select: {
+            question_id: true,
+            type: true
           }
         }),
         // Fetch student progress
@@ -787,12 +797,16 @@ export const getClassDetailsWithFullQuestionsService = async ({
       ]);
 
       console.log("Parallel queries completed");
-      console.log("Questions:", questionsData.length, "Progress:", studentProgress.length, "Bookmarks:", studentBookmarks.length, "Total:", totalQuestions);
+      console.log("Questions:", questionsData.length, "Visibility:", visibilityData.length, "Progress:", studentProgress.length, "Bookmarks:", studentBookmarks.length, "Total:", totalQuestions);
 
       console.time(processingLabel);
       // Create lookup maps
       const questionMap = new Map(
         questionsData.map(q => [q.id, q])
+      );
+
+      const visibilityMap = new Map(
+        visibilityData.map(v => [v.question_id, v.type])
       );
       
       const progressMap = new Map(
@@ -820,7 +834,7 @@ export const getClassDetailsWithFullQuestionsService = async ({
           questionLink: question.question_link,
           platform: question.platform,
           level: question.level,
-          type: question.type,
+          type: visibilityMap.get(questionId) || 'HOMEWORK', // Get type from visibility
           topic: topic, // Use fetched topic
           isSolved,
           isBookmarked,

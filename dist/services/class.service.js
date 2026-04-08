@@ -557,7 +557,7 @@ const getClassDetailsWithFullQuestionsService = async ({ studentId, batchId, top
             const questionIds = questionVisibilityData.map(qv => qv.question_id);
             // Parallel queries: Question data, Student Progress, Bookmarks, and Total Count
             console.log("Executing Parallel Queries");
-            const [questionsData, studentProgress, studentBookmarks, totalQuestions] = await Promise.all([
+            const [questionsData, visibilityData, studentProgress, studentBookmarks, totalQuestions] = await Promise.all([
                 // Fetch question data
                 prisma_1.default.question.findMany({
                     where: {
@@ -569,8 +569,18 @@ const getClassDetailsWithFullQuestionsService = async ({ studentId, batchId, top
                         question_link: true,
                         platform: true,
                         level: true,
-                        type: true,
                         topic_id: true
+                    }
+                }),
+                // Fetch visibility data for type
+                prisma_1.default.questionVisibility.findMany({
+                    where: {
+                        class_id: classData.id,
+                        question_id: { in: questionIds }
+                    },
+                    select: {
+                        question_id: true,
+                        type: true
                     }
                 }),
                 // Fetch student progress
@@ -600,10 +610,11 @@ const getClassDetailsWithFullQuestionsService = async ({ studentId, batchId, top
                 })
             ]);
             console.log("Parallel queries completed");
-            console.log("Questions:", questionsData.length, "Progress:", studentProgress.length, "Bookmarks:", studentBookmarks.length, "Total:", totalQuestions);
+            console.log("Questions:", questionsData.length, "Visibility:", visibilityData.length, "Progress:", studentProgress.length, "Bookmarks:", studentBookmarks.length, "Total:", totalQuestions);
             console.time(processingLabel);
             // Create lookup maps
             const questionMap = new Map(questionsData.map(q => [q.id, q]));
+            const visibilityMap = new Map(visibilityData.map(v => [v.question_id, v.type]));
             const progressMap = new Map(studentProgress.map(progress => [progress.question_id, progress.sync_at]));
             const bookmarkMap = new Map(studentBookmarks.map(bookmark => [bookmark.question_id, true]));
             // Format questions with progress data
@@ -621,7 +632,7 @@ const getClassDetailsWithFullQuestionsService = async ({ studentId, batchId, top
                     questionLink: question.question_link,
                     platform: question.platform,
                     level: question.level,
-                    type: question.type,
+                    type: visibilityMap.get(questionId) || 'HOMEWORK', // Get type from visibility
                     topic: topic, // Use fetched topic
                     isSolved,
                     isBookmarked,
@@ -631,10 +642,10 @@ const getClassDetailsWithFullQuestionsService = async ({ studentId, batchId, top
             // Apply filtering in memory (only on paginated data)
             let filteredQuestions = questionsWithProgress;
             if (filter === 'solved') {
-                filteredQuestions = questionsWithProgress.filter(q => q.isSolved);
+                filteredQuestions = questionsWithProgress.filter((q) => q !== null && q.isSolved);
             }
             else if (filter === 'unsolved') {
-                filteredQuestions = questionsWithProgress.filter(q => !q.isSolved);
+                filteredQuestions = questionsWithProgress.filter((q) => q !== null && !q.isSolved);
             }
             // Use solvedCount from already fetched studentProgress data
             const solvedCount = studentProgress.length;

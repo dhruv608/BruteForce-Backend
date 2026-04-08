@@ -3,11 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllQuestionsWithFiltersService = exports.removeQuestionFromClassService = exports.getAssignedQuestionsOfClassService = exports.assignQuestionsToClassService = void 0;
+exports.updateQuestionVisibilityTypeService = exports.getAllQuestionsWithFiltersService = exports.removeQuestionFromClassService = exports.getAssignedQuestionsOfClassService = exports.assignQuestionsToClassService = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const ApiError_1 = require("../utils/ApiError");
-const assignQuestionsToClassService = async ({ batchId, topicSlug, classSlug, questionIds, }) => {
-    if (!questionIds || questionIds.length === 0) {
+const assignQuestionsToClassService = async ({ batchId, topicSlug, classSlug, questions, }) => {
+    if (!questions || questions.length === 0) {
         throw new ApiError_1.ApiError(400, "No questions provided");
     }
     // Find topic first
@@ -27,9 +27,10 @@ const assignQuestionsToClassService = async ({ batchId, topicSlug, classSlug, qu
     if (!cls) {
         throw new ApiError_1.ApiError(400, "Class not found in this topic and batch");
     }
-    const data = questionIds.map((qid) => ({
+    const data = questions.map((q) => ({
         class_id: cls.id,
-        question_id: qid,
+        question_id: q.question_id,
+        type: q.type,
     }));
     await prisma_1.default.questionVisibility.createMany({
         data,
@@ -37,23 +38,22 @@ const assignQuestionsToClassService = async ({ batchId, topicSlug, classSlug, qu
     });
     // Update batch question counts after assignment
     await updateBatchQuestionCounts(batchId);
-    return { assignedCount: questionIds.length };
+    return { assignedCount: questions.length };
 };
 exports.assignQuestionsToClassService = assignQuestionsToClassService;
 const getAssignedQuestionsOfClassService = async ({ batchId, topicSlug, classSlug, page = 1, limit = 25, search = '', }) => {
-    // Find topic first
-    const topic = await prisma_1.default.topic.findUnique({
-        where: { slug: topicSlug },
-    });
-    if (!topic) {
-        throw new ApiError_1.ApiError(400, "Topic not found");
-    }
+    // Enforce max pagination limit for safety
+    const safeLimit = Math.min(limit, 100);
+    // Validate class exists in batch and topic via relation (single query)
     const cls = await prisma_1.default.class.findFirst({
         where: {
             slug: classSlug,
             batch_id: batchId,
-            topic_id: topic.id, // Add topic validation
+            topic: {
+                slug: topicSlug,
+            },
         },
+        select: { id: true },
     });
     if (!cls) {
         throw new ApiError_1.ApiError(400, "Class not found in this topic and batch");
@@ -71,36 +71,52 @@ const getAssignedQuestionsOfClassService = async ({ batchId, topicSlug, classSlu
             }
         };
     }
-    // Get total count for pagination
-    const total = await prisma_1.default.questionVisibility.count({
-        where: whereClause,
-    });
     // Calculate pagination
-    const skip = (page - 1) * limit;
-    const totalPages = Math.ceil(total / limit);
-    const assigned = await prisma_1.default.questionVisibility.findMany({
-        where: whereClause,
-        include: {
-            question: {
-                include: {
-                    topic: {
-                        select: { topic_name: true, slug: true },
+    const skip = (page - 1) * safeLimit;
+    // Parallelize count and data queries
+    const [total, assigned] = await Promise.all([
+        prisma_1.default.questionVisibility.count({
+            where: whereClause,
+        }),
+        prisma_1.default.questionVisibility.findMany({
+            where: whereClause,
+            select: {
+                id: true,
+                type: true,
+                assigned_at: true,
+                question: {
+                    select: {
+                        id: true,
+                        question_name: true,
+                        question_link: true,
+                        platform: true,
+                        level: true,
+                        created_at: true,
+                        topic: {
+                            select: { topic_name: true, slug: true },
+                        },
                     },
                 },
             },
-        },
-        orderBy: {
-            assigned_at: "desc",
-        },
-        skip,
-        take: limit,
-    });
-    const questions = assigned.map((qv) => qv.question);
+            orderBy: {
+                assigned_at: "desc",
+            },
+            skip,
+            take: safeLimit,
+        }),
+    ]);
+    const totalPages = Math.ceil(total / safeLimit);
+    const questions = assigned.map((qv) => ({
+        ...qv.question,
+        visibility_id: qv.id,
+        type: qv.type,
+        assigned_at: qv.assigned_at,
+    }));
     return {
         data: questions,
         pagination: {
             page,
-            limit,
+            limit: safeLimit,
             total,
             totalPages,
         },
@@ -198,12 +214,10 @@ const getAllQuestionsWithFiltersService = async ({ studentId, batchId, filters }
             }
         });
     }
-    // Type filter
+    // Type filter - now filters on QuestionVisibility.type
     if (filters.type) {
         filterConditions.push({
-            question: {
-                type: filters.type.toUpperCase()
-            }
+            type: filters.type.toUpperCase()
         });
     }
     // Solved/Unsolved filter using relation filtering
@@ -251,17 +265,17 @@ const getAllQuestionsWithFiltersService = async ({ studentId, batchId, filters }
     }
     // Level filter
     if (filters.level) {
-        whereConditions.push('q.level = $' + (params.length + 1));
+        whereConditions.push('q.level = $' + (params.length + 1) + '::text::"Level"');
         params.push(filters.level.toUpperCase());
     }
     // Platform filter
     if (filters.platform) {
-        whereConditions.push('q.platform = $' + (params.length + 1));
+        whereConditions.push('q.platform = $' + (params.length + 1) + '::text::"Platform"');
         params.push(filters.platform.toUpperCase());
     }
-    // Type filter
+    // Type filter - now filters on QuestionVisibility.type
     if (filters.type) {
-        whereConditions.push('q.type = $' + (params.length + 1));
+        whereConditions.push('qv.type = $' + (params.length + 1) + '::text::"QuestionType"');
         params.push(filters.type.toUpperCase());
     }
     // Solved/Unsolved filter
@@ -274,10 +288,17 @@ const getAllQuestionsWithFiltersService = async ({ studentId, batchId, filters }
         }
     }
     const whereClause = whereConditions.join(' AND ');
-    // Add studentId parameters for JOIN conditions
-    const studentIdParamIndex = params.length + 1;
-    const bookmarkIdParamIndex = params.length + 2;
-    params.push(studentId, studentId);
+    // Calculate indices for studentId in JOIN conditions
+    // These will be the same for both queries since they come after filters
+    const filterParamsCount = params.length;
+    const studentIdParamIndex = filterParamsCount + 1; // First studentId position
+    const bookmarkIdParamIndex = filterParamsCount + 2; // Second studentId position
+    const limitParamIndex = filterParamsCount + 3; // LIMIT position
+    const offsetParamIndex = filterParamsCount + 4; // OFFSET position
+    // Main data query params: filter params + 2 studentIds + limit + offset
+    const dataParams = [...params, studentId, studentId, filters.limit, offset];
+    // Count query params: filter params + 2 studentIds (no limit/offset)
+    const countParams = [...params, studentId, studentId];
     // Main data query with single JOIN
     const dataQuery = `
     SELECT DISTINCT 
@@ -286,7 +307,7 @@ const getAllQuestionsWithFiltersService = async ({ studentId, batchId, filters }
       q.question_link,
       q.level,
       q.platform,
-      q.type,
+      qv.type,
       q.created_at,
       t.id as topic_id,
       t.topic_name,
@@ -302,13 +323,11 @@ const getAllQuestionsWithFiltersService = async ({ studentId, batchId, filters }
     LEFT JOIN "Bookmark" b ON q.id = b.question_id AND b.student_id = $${bookmarkIdParamIndex}
     WHERE ${whereClause}
     ORDER BY q.created_at DESC
-    LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
   `;
-    // Add limit and offset parameters
-    params.push(filters.limit, offset);
     // Count query with same conditions
     const countQuery = `
-    SELECT COUNT(DISTINCT q.id)
+    SELECT COUNT(DISTINCT q.id) as count
     FROM "QuestionVisibility" qv
     JOIN "Class" c ON qv.class_id = c.id
     JOIN "Question" q ON qv.question_id = q.id
@@ -319,12 +338,13 @@ const getAllQuestionsWithFiltersService = async ({ studentId, batchId, filters }
   `;
     const dbStartTime = Date.now();
     const [paginatedQuestions, totalCount] = await Promise.all([
-        prisma_1.default.$queryRawUnsafe(dataQuery, ...params),
-        prisma_1.default.$queryRawUnsafe(countQuery, ...params.slice(0, -2)) // Exclude limit/offset for count
+        prisma_1.default.$queryRawUnsafe(dataQuery, ...dataParams),
+        prisma_1.default.$queryRawUnsafe(countQuery, ...countParams)
     ]);
     // Convert BigInt to Number for JSON serialization
     const totalCountNumber = Number(totalCount[0]?.count || 0);
     const dbQueryTime = Date.now() - dbStartTime;
+    console.log(` [DB] RAW SQL queries completed in ${dbQueryTime}ms`);
     console.log(`🗄️ [DB] RAW SQL queries completed in ${dbQueryTime}ms`);
     // Map RAW SQL results to exact previous response structure
     const questions = paginatedQuestions.map((row) => {
@@ -384,6 +404,42 @@ const getAllQuestionsWithFiltersService = async ({ studentId, batchId, filters }
     };
 };
 exports.getAllQuestionsWithFiltersService = getAllQuestionsWithFiltersService;
+const updateQuestionVisibilityTypeService = async ({ batchId, topicSlug, classSlug, visibilityId, type }) => {
+    // Find topic first
+    const topic = await prisma_1.default.topic.findUnique({
+        where: { slug: topicSlug },
+    });
+    if (!topic) {
+        throw new ApiError_1.ApiError(400, "Topic not found");
+    }
+    const cls = await prisma_1.default.class.findFirst({
+        where: {
+            slug: classSlug,
+            batch_id: batchId,
+            topic_id: topic.id,
+        },
+    });
+    if (!cls) {
+        throw new ApiError_1.ApiError(400, "Class not found in this topic and batch");
+    }
+    // Verify the visibility record exists and belongs to this class
+    const visibility = await prisma_1.default.questionVisibility.findFirst({
+        where: {
+            id: visibilityId,
+            class_id: cls.id,
+        },
+    });
+    if (!visibility) {
+        throw new ApiError_1.ApiError(404, "Question visibility record not found");
+    }
+    // Update the type
+    const updated = await prisma_1.default.questionVisibility.update({
+        where: { id: visibilityId },
+        data: { type },
+    });
+    return updated;
+};
+exports.updateQuestionVisibilityTypeService = updateQuestionVisibilityTypeService;
 // Helper function to update batch question counts
 async function updateBatchQuestionCounts(batchId) {
     try {

@@ -348,8 +348,8 @@ export const getAdminStatsService = async (batchId: number) => {
     prisma.$queryRaw<{ total_questions: BigInt; homework: BigInt; classwork: BigInt; easy: BigInt; medium: BigInt; hard: BigInt; leetcode: BigInt; gfg: BigInt; other: BigInt; interviewbit: BigInt; }[]>`
       SELECT 
         COUNT(*) as total_questions,
-        COUNT(*) FILTER (WHERE q.type = 'HOMEWORK') as homework,
-        COUNT(*) FILTER (WHERE q.type = 'CLASSWORK') as classwork,
+        COUNT(*) FILTER (WHERE qv.type = 'HOMEWORK') as homework,
+        COUNT(*) FILTER (WHERE qv.type = 'CLASSWORK') as classwork,
         COUNT(*) FILTER (WHERE q.level = 'EASY') as easy,
         COUNT(*) FILTER (WHERE q.level = 'MEDIUM') as medium,
         COUNT(*) FILTER (WHERE q.level = 'HARD') as hard,

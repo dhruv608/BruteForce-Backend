@@ -14,7 +14,7 @@ import { uploadPdf } from "../middlewares/pdfUpload.middleware";
 import { getAdminStats, getRolesController, getCurrentAdminController } from "../controllers/admin.controller";
 import { downloadBatchReportController } from "../controllers/csv.controller";
 import { getAdminLeaderboard } from "../controllers/leaderboard.controller";
-import { assignQuestionsToClass, getAssignedQuestionsOfClass, removeQuestionFromClass } from "../controllers/questionVisibility.controller";
+import { assignQuestionsToClass, getAssignedQuestionsOfClass, removeQuestionFromClass, updateQuestionVisibilityType } from "../controllers/questionVisibility.controller";
 import { createClassInTopic, deleteClass, getClassDetails, getClassesByTopic, updateClass } from "../controllers/class.controller";
 import { manualSync } from "../controllers/progress.controller";
 import { addStudentProgressController, createStudentController, deleteStudentDetails, getAllStudentsController, getStudentReportController, updateStudentDetails } from "../controllers/student.controller";
@@ -163,5 +163,11 @@ router.delete(
   removeQuestionFromClass
 );
 
+// Update question visibility type (homework/classwork)
+router.patch(
+  "/:batchSlug/topics/:topicSlug/classes/:classSlug/visibility/:visibilityId",
+  isTeacherOrAbove,
+  updateQuestionVisibilityType
+);
 
 export default router;

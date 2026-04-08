@@ -181,7 +181,7 @@ exports.bulkTestUploadQuestions = (0, asyncHandler_1.asyncHandler)(async (req, r
         throw new ApiError_1.ApiError(400, "CSV file is empty or invalid", [], "INVALID_FILE");
     }
     // Validate required columns
-    const requiredColumns = ['question_name', 'question_link', 'level', 'type', 'topic_slug'];
+    const requiredColumns = ['question_name', 'question_link', 'level', 'topic_slug'];
     const csvColumns = Object.keys(results[0]);
     const missingColumns = requiredColumns.filter(col => !csvColumns.includes(col));
     if (missingColumns.length > 0) {
@@ -189,7 +189,7 @@ exports.bulkTestUploadQuestions = (0, asyncHandler_1.asyncHandler)(async (req, r
     }
     // Validate and format each question
     const validatedQuestions = results.map((row, index) => {
-        const { question_name, question_link, level, type, topic_slug } = row;
+        const { question_name, question_link, level, topic_slug } = row;
         if (!question_name || !question_name.trim()) {
             throw new ApiError_1.ApiError(400, `Row ${index + 2}: question_name is required`, [], "REQUIRED_FIELD");
         }
@@ -199,9 +199,6 @@ exports.bulkTestUploadQuestions = (0, asyncHandler_1.asyncHandler)(async (req, r
         if (!level || !['EASY', 'MEDIUM', 'HARD'].includes(level.toUpperCase().trim())) {
             throw new ApiError_1.ApiError(400, `Row ${index + 2}: level must be EASY, MEDIUM, or HARD`, [], "INVALID_VALUE");
         }
-        if (!type || !['HOMEWORK', 'CLASSWORK'].includes(type.toUpperCase().trim())) {
-            throw new ApiError_1.ApiError(400, `Row ${index + 2}: type must be HOMEWORK or CLASSWORK`, [], "INVALID_VALUE");
-        }
         if (!topic_slug || !topic_slug.trim()) {
             throw new ApiError_1.ApiError(400, `Row ${index + 2}: topic_slug is required`, [], "REQUIRED_FIELD");
         }
@@ -209,7 +206,6 @@ exports.bulkTestUploadQuestions = (0, asyncHandler_1.asyncHandler)(async (req, r
             question_name: question_name.trim(),
             question_link: question_link.trim(),
             level: level.toUpperCase().trim(),
-            type: type.toUpperCase().trim(),
             topic_slug: topic_slug.trim(),
         };
     });
@@ -230,7 +226,6 @@ exports.bulkTestUploadQuestions = (0, asyncHandler_1.asyncHandler)(async (req, r
         question_name: q.question_name,
         question_link: q.question_link,
         level: q.level,
-        type: q.type,
         topic_id: topicMap.get(q.topic_slug), // We know this exists after validation
         platform: (0, question_service_1.detectPlatform)(q.question_link), // Detect platform from question link
     }));

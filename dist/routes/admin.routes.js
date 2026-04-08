@@ -81,4 +81,6 @@ router.delete("/:batchSlug/topics/:topicSlug/classes/:classSlug", role_middlewar
 router.post("/:batchSlug/topics/:topicSlug/classes/:classSlug/questions", role_middleware_1.isTeacherOrAbove, questionVisibility_controller_1.assignQuestionsToClass);
 router.get("/:batchSlug/topics/:topicSlug/classes/:classSlug/questions", questionVisibility_controller_1.getAssignedQuestionsOfClass);
 router.delete("/:batchSlug/topics/:topicSlug/classes/:classSlug/questions/:questionId", role_middleware_1.isTeacherOrAbove, questionVisibility_controller_1.removeQuestionFromClass);
+// Update question visibility type (homework/classwork)
+router.patch("/:batchSlug/topics/:topicSlug/classes/:classSlug/visibility/:visibilityId", role_middleware_1.isTeacherOrAbove, questionVisibility_controller_1.updateQuestionVisibilityType);
 exports.default = router;

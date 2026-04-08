@@ -11,12 +11,11 @@ exports.createQuestion = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     });
 });
 exports.getAllQuestions = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
-    const { topicSlug, level, platform, type, search, page, limit, } = req.query;
+    const { topicSlug, level, platform, search, page, limit, } = req.query;
     const result = await (0, question_service_1.getAllQuestionsService)({
         topicSlug: topicSlug,
         level: level,
         platform: platform,
-        type: type,
         search: search,
         page: page ? Number(page) : 1,
         limit: limit ? Number(limit) : 10,

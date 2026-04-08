@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllQuestionsWithFilters = exports.removeQuestionFromClass = exports.getAssignedQuestionsOfClass = exports.assignQuestionsToClass = void 0;
+exports.updateQuestionVisibilityType = exports.getAllQuestionsWithFilters = exports.removeQuestionFromClass = exports.getAssignedQuestionsOfClass = exports.assignQuestionsToClass = void 0;
 const questionVisibility_service_1 = require("../services/questionVisibility.service");
 const asyncHandler_1 = require("../utils/asyncHandler");
 const ApiError_1 = require("../utils/ApiError");
@@ -15,25 +15,27 @@ exports.assignQuestionsToClass = (0, asyncHandler_1.asyncHandler)(async (req, re
         if (typeof classSlug !== "string") {
             throw new ApiError_1.ApiError(400, "Invalid class slug", [], "INVALID_INPUT");
         }
-        const { question_ids } = req.body;
-        // Validation 1: Check if question_ids is provided
-        if (!question_ids) {
-            throw new ApiError_1.ApiError(400, "question_ids field is required", [], "REQUIRED_FIELD");
+        const { questions } = req.body;
+        // Validation 1: Check if questions is provided
+        if (!questions) {
+            throw new ApiError_1.ApiError(400, "questions field is required", [], "REQUIRED_FIELD");
         }
-        // Validation 2: Check if question_ids is an array
-        if (!Array.isArray(question_ids)) {
-            throw new ApiError_1.ApiError(400, "question_ids must be an array", [], "INVALID_INPUT");
+        // Validation 2: Check if questions is an array
+        if (!Array.isArray(questions)) {
+            throw new ApiError_1.ApiError(400, "questions must be an array", [], "INVALID_INPUT");
         }
         // Validation 3: Check if array is not empty
-        if (question_ids.length === 0) {
-            throw new ApiError_1.ApiError(400, "question_ids array cannot be empty", [], "INVALID_INPUT");
+        if (questions.length === 0) {
+            throw new ApiError_1.ApiError(400, "questions array cannot be empty", [], "INVALID_INPUT");
         }
-        // Validation 4: Check if all elements are numbers
-        if (!question_ids.every(id => typeof id === 'number' && id > 0)) {
-            throw new ApiError_1.ApiError(400, "All question_ids must be positive numbers", [], "INVALID_INPUT");
+        // Validation 4: Check if all elements have required fields
+        if (!questions.every(q => typeof q.question_id === 'number' && q.question_id > 0 &&
+            (q.type === 'HOMEWORK' || q.type === 'CLASSWORK'))) {
+            throw new ApiError_1.ApiError(400, "All questions must have question_id (positive number) and type (HOMEWORK or CLASSWORK)", [], "INVALID_INPUT");
         }
         // Validation 5: Check for duplicate question IDs in request
-        const duplicateIds = question_ids.filter((id, index) => question_ids.indexOf(id) !== index);
+        const questionIds = questions.map(q => q.question_id);
+        const duplicateIds = questionIds.filter((id, index) => questionIds.indexOf(id) !== index);
         if (duplicateIds.length > 0) {
             throw new ApiError_1.ApiError(400, `Duplicate question IDs found in request: ${duplicateIds.join(', ')}`, [], "INVALID_INPUT");
         }
@@ -41,7 +43,7 @@ exports.assignQuestionsToClass = (0, asyncHandler_1.asyncHandler)(async (req, re
             batchId: batch.id,
             topicSlug: topicSlugParam,
             classSlug,
-            questionIds: question_ids,
+            questions: questions,
         });
         return res.json({
             message: "Questions assigned successfully",
@@ -158,5 +160,47 @@ exports.getAllQuestionsWithFilters = (0, asyncHandler_1.asyncHandler)(async (req
         if (error instanceof ApiError_1.ApiError)
             throw error;
         throw new ApiError_1.ApiError(500, error.message || "Failed to fetch questions");
+    }
+});
+// Update question visibility type (homework/classwork)
+exports.updateQuestionVisibilityType = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
+    try {
+        const batch = req.batch;
+        const topicSlugParam = req.params.topicSlug;
+        const classSlug = req.params.classSlug;
+        const visibilityIdParam = req.params.visibilityId;
+        if (typeof topicSlugParam !== "string") {
+            throw new ApiError_1.ApiError(400, "Invalid topic slug", [], "INVALID_INPUT");
+        }
+        if (typeof classSlug !== "string") {
+            throw new ApiError_1.ApiError(400, "Invalid class slug", [], "INVALID_INPUT");
+        }
+        if (typeof visibilityIdParam !== "string") {
+            throw new ApiError_1.ApiError(400, "Invalid visibility ID", [], "INVALID_INPUT");
+        }
+        const visibilityId = parseInt(visibilityIdParam);
+        if (isNaN(visibilityId)) {
+            throw new ApiError_1.ApiError(400, "Invalid visibility ID", [], "INVALID_INPUT");
+        }
+        const { type } = req.body;
+        if (!type || (type !== 'HOMEWORK' && type !== 'CLASSWORK')) {
+            throw new ApiError_1.ApiError(400, "Type must be HOMEWORK or CLASSWORK", [], "INVALID_INPUT");
+        }
+        const updated = await (0, questionVisibility_service_1.updateQuestionVisibilityTypeService)({
+            batchId: batch.id,
+            topicSlug: topicSlugParam,
+            classSlug,
+            visibilityId,
+            type
+        });
+        return res.json({
+            message: "Question visibility type updated successfully",
+            data: updated
+        });
+    }
+    catch (error) {
+        if (error instanceof ApiError_1.ApiError)
+            throw error;
+        throw new ApiError_1.ApiError(500, error.message, [], "INTERNAL_SERVER_ERROR");
     }
 });

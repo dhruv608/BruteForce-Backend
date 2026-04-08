@@ -1,4 +1,4 @@
-import { Level, Platform, QuestionType } from "@prisma/client";
+import { Level, Platform } from "@prisma/client";
 import prisma from "../config/prisma";
 import csv from "csv-parser";
 import { Readable } from "stream";
@@ -8,7 +8,6 @@ interface CSVRow {
   question_name: string;
   question_link: string;
   level: "EASY" | "MEDIUM" | "HARD";
-  type: "HOMEWORK" | "CLASSWORK";
 }
 
 export const bulkUploadQuestionsService = async (
@@ -44,9 +43,8 @@ export const bulkUploadQuestionsService = async (
 
   for (const row of rows) {
     const level = Level[row.level as keyof typeof Level];
-    const type = QuestionType[row.type as keyof typeof QuestionType];
 
-    if (!level || !type) {
+    if (!level) {
       console.log(
         `Skipping invalid enum row → ${row.question_name}`
       );
@@ -71,7 +69,6 @@ export const bulkUploadQuestionsService = async (
       question_name: row.question_name,
       question_link: row.question_link,
       level,
-      type,
       topic_id: topicId,
       platform,
     });

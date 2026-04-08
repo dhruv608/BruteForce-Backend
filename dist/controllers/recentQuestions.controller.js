@@ -8,7 +8,7 @@ exports.getRecentQuestions = (0, asyncHandler_1.asyncHandler)(async (req, res) =
     try {
         // Get batch info from middleware (extractStudentInfo)
         const batchId = req.batchId;
-        const { date } = req.query;
+        const { date, page, limit } = req.query;
         if (!batchId) {
             throw new ApiError_1.ApiError(401, "Student authentication required", [], "UNAUTHORIZED");
         }
@@ -27,14 +27,16 @@ exports.getRecentQuestions = (0, asyncHandler_1.asyncHandler)(async (req, res) =
             }
             dateParam = dateStr;
         }
-        const questions = await (0, recentQuestions_service_1.getRecentQuestionsService)({
+        // Parse pagination params
+        const pageParam = page ? parseInt(page, 10) : undefined;
+        const limitParam = limit ? parseInt(limit, 10) : undefined;
+        const result = await (0, recentQuestions_service_1.getRecentQuestionsService)({
             batchId,
-            date: dateParam
+            date: dateParam,
+            page: pageParam,
+            limit: limitParam
         });
-        return res.json({
-            questions,
-            total: questions.length
-        });
+        return res.json(result);
     }
     catch (error) {
         if (error instanceof ApiError_1.ApiError)

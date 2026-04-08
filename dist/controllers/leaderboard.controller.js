@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getLeaderboardByType = exports.getLeaderboardPost = exports.getStudentLeaderboard = exports.getAdminLeaderboard = exports.getAvailableYearsController = void 0;
 const leaderboard_service_1 = require("../services/leaderboard.service");
+const adminLeaderboard_service_1 = require("../services/leaderboard/adminLeaderboard.service");
+const studentLeaderboard_service_1 = require("../services/leaderboard/studentLeaderboard.service");
 const prisma_1 = __importDefault(require("../config/prisma"));
 const asyncHandler_1 = require("../utils/asyncHandler");
 const ApiError_1 = require("../utils/ApiError");
@@ -46,7 +48,7 @@ exports.getAdminLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res) 
             limit: Number(limit)
         };
         // Step 5 — Use optimized service
-        const result = await (0, leaderboard_service_1.getLeaderboardWithPagination)(filters, pagination, search);
+        const result = await (0, adminLeaderboard_service_1.getAdminLeaderboard)(filters, pagination, search);
         // Step 6 — Format leaderboard with all-time rankings
         const formattedLeaderboard = result.leaderboard.map(entry => {
             return {
@@ -88,46 +90,37 @@ exports.getAdminLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res) 
 // Student Leaderboard API with top 10 and personal rank
 exports.getStudentLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res) => {
     try {
-        // Step 1 — Get student ID from auth middleware
+        // Step 1 — Get student data from auth middleware (JWT)
         const studentId = req.studentId;
-        if (!studentId) {
+        const cityId = req.cityId;
+        const batchId = req.batchId;
+        const batchName = req.batchName;
+        // Extract batch year from batchName (e.g., "2024-2025" → 2024)
+        const batchYear = batchName ? parseInt(batchName.split("-")[0]) : new Date().getFullYear();
+        if (!studentId || !cityId || !batchId) {
             return res.status(400).json({
                 success: false,
-                message: "Student ID not found in request."
+                message: "Student data not found in JWT."
             });
         }
         // Step 2 — Get filters from request body
         const body = req.body || {};
         const { city, year, username } = body;
-        // Step 3 — Get student details
-        const student = await prisma_1.default.student.findUnique({
-            where: { id: studentId },
-            include: {
-                city: {
-                    select: { city_name: true }
-                },
-                batch: {
-                    select: { year: true }
-                }
-            }
-        });
-        if (!student) {
-            return res.status(404).json({
-                success: false,
-                message: "Student not found."
-            });
-        }
-        // Step 4 — Prepare filters
+        // Step 3 — Prepare JWT data and filters
+        const jwtData = {
+            studentId,
+            cityId,
+            batchId,
+            batchYear
+        };
         const filters = {
             city: city || 'all',
-            year: year || student.batch?.year || new Date().getFullYear()
+            year: year || batchYear
         };
-        // Step 5 — Fetch Top 10 using shared service with limit 10
-        const pagination = { page: 1, limit: 10 };
-        let search = username;
-        const top10Result = await (0, leaderboard_service_1.getLeaderboardWithPagination)(filters, pagination, search);
-        // Step 6 — Format top10 leaderboard with explicitly requested data mapping
-        const formattedTop10 = top10Result.leaderboard.map(entry => {
+        // Step 4 — Fetch using optimized service (no extra Prisma queries)
+        const result = await (0, studentLeaderboard_service_1.getStudentLeaderboard)(jwtData, filters, username);
+        // Step 6 — Format top10 leaderboard
+        const formattedTop10 = result.top10.map((entry) => {
             return {
                 student_id: entry.student_id,
                 name: entry.name,
@@ -142,53 +135,15 @@ exports.getStudentLeaderboard = (0, asyncHandler_1.asyncHandler)(async (req, res
                 city_rank: entry.alltime_city_rank
             };
         });
-        // Step 7 — Get logged-in student's rank using direct query
-        const studentEntry = await (0, leaderboard_service_1.getStudentRankDirect)(studentId, filters);
-        // Step 8 — Prepare yourRank response with simplified data
-        let yourRank = null;
-        let rankMessage = null;
-        if (studentEntry) {
-            // The getStudentRankDirect already returns the correct rank fields based on type
-            const globalRank = studentEntry.global_rank;
-            const cityRank = studentEntry.city_rank;
-            yourRank = {
-                rank: filters.city === 'all' ? globalRank : cityRank,
-                student_id: studentId,
-                name: student.name,
-                username: student.username,
-                profile_image_url: student.profile_image_url,
-                batch_year: student.batch?.year,
-                city_name: studentEntry.city_name,
-                max_streak: studentEntry.max_streak,
-                score: studentEntry.score,
-                easy_solved: studentEntry.easy_solved,
-                medium_solved: studentEntry.medium_solved,
-                hard_solved: studentEntry.hard_solved,
-                total_solved: studentEntry.total_solved,
-                total_assigned: (studentEntry.hard_assigned || 0) + (studentEntry.medium_assigned || 0) + (studentEntry.easy_assigned || 0)
-            };
-        }
-        else {
-            // Check if year mismatch
-            if (year && year !== student.batch?.year) {
-                rankMessage = `Student belongs to ${student.batch?.year} batch, but ${year} data requested`;
-            }
-            else {
-                rankMessage = "Student rank not found in current filters";
-            }
-        }
         return res.status(200).json({
             success: true,
             data: {
                 top10: formattedTop10,
-                yourRank,
-                message: rankMessage,
-                filters: {
-                    city: filters.city,
-                    year: filters.year
-                },
-                available_cities: top10Result.available_cities,
-                last_calculated: top10Result.last_calculated
+                yourRank: result.yourRank,
+                message: result.message,
+                filters: result.filters,
+                available_cities: result.available_cities,
+                last_calculated: result.last_calculated
             }
         });
     }
@@ -214,7 +169,7 @@ exports.getLeaderboardPost = (0, asyncHandler_1.asyncHandler)(async (req, res) =
         };
         // For backward compatibility, get first page without pagination
         const pagination = { page: 1, limit: 100 };
-        const result = await (0, leaderboard_service_1.getLeaderboardWithPagination)(query, pagination, null);
+        const result = await (0, adminLeaderboard_service_1.getAdminLeaderboard)(query, pagination, undefined);
         return res.status(200).json({
             success: true,
             data: result.leaderboard
@@ -248,7 +203,7 @@ exports.getLeaderboardByType = (0, asyncHandler_1.asyncHandler)(async (req, res)
         };
         // Get leaderboard data
         const pagination = { page: 1, limit: 100 };
-        const leaderboardResult = await (0, leaderboard_service_1.getLeaderboardWithPagination)(query, pagination, null);
+        const leaderboardResult = await (0, adminLeaderboard_service_1.getAdminLeaderboard)(query, pagination, undefined);
         const leaderboard = leaderboardResult.leaderboard;
         // Find the student's rank in the leaderboard
         const studentEntry = leaderboard.find((entry) => entry.student_id === studentId);

@@ -8,7 +8,6 @@ interface CreateQuestionInput {
   topic_id: number;
   platform?: "LEETCODE" | "GFG" | "OTHER";
   level?: "EASY" | "MEDIUM" | "HARD";
-  type?: "HOMEWORK" | "CLASSWORK";
 }
 
 export const detectPlatform = (link: string): Platform => {
@@ -32,7 +31,6 @@ export const createQuestionService = async ({
   topic_id,
   platform,
   level = "MEDIUM",
-  type = "HOMEWORK",
 }: CreateQuestionInput) => {
 
   if (!question_name || !question_link || !topic_id) {
@@ -70,7 +68,6 @@ export const createQuestionService = async ({
       topic_id,
       platform: finalPlatform,
       level,
-      type,
     },
   });
 
@@ -83,7 +80,6 @@ interface GetAllQuestionsInput {
   topicSlug?: string;
   level?: string;
   platform?: string;
-  type?: string;
   search?: string;
   page?: number;
   limit?: number;
@@ -93,7 +89,6 @@ export const getAllQuestionsService = async ({
   topicSlug,
   level,
   platform,
-  type,
   search,
   page = 1,
   limit = 10,
@@ -118,11 +113,6 @@ export const getAllQuestionsService = async ({
   //  Platform filter
   if (platform) {
     where.platform = platform;
-  }
-
-  //  Type filter
-  if (type) {
-    where.type = type;
   }
 
   //  Search filter
@@ -185,7 +175,6 @@ interface UpdateQuestionInput {
   topic_id?: number;
   level?: "EASY" | "MEDIUM" | "HARD";
   platform?: "LEETCODE" | "GFG" | "OTHER";
-  type?: "HOMEWORK" | "CLASSWORK";
 }
 
 export const updateQuestionService = async ({
@@ -195,7 +184,6 @@ export const updateQuestionService = async ({
   topic_id,
   level,
   platform,
-  type,
 }: UpdateQuestionInput) => {
 
   const existing = await prisma.question.findUnique({
@@ -241,7 +229,6 @@ export const updateQuestionService = async ({
       topic_id: finalTopicId,
       level: level ?? existing.level,
       platform: platform ?? existing.platform,
-      type: type ?? existing.type,
     },
   });
 
@@ -386,7 +373,6 @@ export const getAssignedQuestionsService = async (query: any) => {
         question_name: true,
         platform: true,
         level: true,
-        type: true,
         topic: {
           select: {
             topic_name: true
@@ -403,8 +389,6 @@ export const getAssignedQuestionsService = async (query: any) => {
 
     const difficultyStats = { easy: 0, medium: 0, hard: 0 };
 
-    const typeStats = { homework: 0, classwork: 0 };
-
     questions.forEach(q => {
 
       if (q.platform === "LEETCODE") platformStats.leetcode++;
@@ -413,9 +397,6 @@ export const getAssignedQuestionsService = async (query: any) => {
       if (q.level === "EASY") difficultyStats.easy++;
       if (q.level === "MEDIUM") difficultyStats.medium++;
       if (q.level === "HARD") difficultyStats.hard++;
-
-      if (q.type === "HOMEWORK") typeStats.homework++;
-      if (q.type === "CLASSWORK") typeStats.classwork++;
 
     });
 
@@ -426,7 +407,6 @@ export const getAssignedQuestionsService = async (query: any) => {
       analytics: {
         platforms: platformStats,
         difficulty: difficultyStats,
-        type: typeStats
       },
 
       questions

@@ -32,8 +32,7 @@ const bulkUploadQuestionsService = async (fileBuffer, topicId) => {
     const dataToInsert = [];
     for (const row of rows) {
         const level = client_1.Level[row.level];
-        const type = client_1.QuestionType[row.type];
-        if (!level || !type) {
+        if (!level) {
             console.log(`Skipping invalid enum row → ${row.question_name}`);
             continue;
         }
@@ -55,7 +54,6 @@ const bulkUploadQuestionsService = async (fileBuffer, topicId) => {
             question_name: row.question_name,
             question_link: row.question_link,
             level,
-            type,
             topic_id: topicId,
             platform,
         });

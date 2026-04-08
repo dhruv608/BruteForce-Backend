@@ -654,8 +654,7 @@ export const getTopicProgressByUsernameService = async (username: string) => {
               question: {
                 select: {
                   level: true,
-                  platform: true,
-                  type: true
+                  platform: true
                 }
               }
             }

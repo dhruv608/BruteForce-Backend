@@ -110,7 +110,6 @@ model Question {
   question_link String               @unique
   platform      Platform             @default(LEETCODE)
   level         Level                @default(MEDIUM)
-  type          QuestionType         @default(HOMEWORK)
   topic_id      Int
   created_at    DateTime             @default(now())
   topic         Topic                @relation(fields: [topic_id], references: [id], onDelete: Cascade)
@@ -147,12 +146,13 @@ model Class {
 }
 
 model QuestionVisibility {
-  id          Int      @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   class_id    Int
   question_id Int
-  assigned_at DateTime @default(now())
-  class       Class    @relation(fields: [class_id], references: [id], onDelete: Cascade)
-  question    Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  type        QuestionType @default(HOMEWORK)
+  assigned_at DateTime     @default(now())
+  class       Class        @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  question    Question     @relation(fields: [question_id], references: [id], onDelete: Cascade)
 
   @@unique([class_id, question_id])
   @@index([class_id])

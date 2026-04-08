@@ -73,22 +73,19 @@ export const getAssignedQuestionsOfClassService = async ({
   limit = 25,
   search = '',
 }: GetAssignedInput) => {
+  // Enforce max pagination limit for safety
+  const safeLimit = Math.min(limit, 100);
 
-  // Find topic first
-  const topic = await prisma.topic.findUnique({
-    where: { slug: topicSlug },
-  });
-
-  if (!topic) {
-    throw new ApiError(400, "Topic not found");
-  }
-
+  // Validate class exists in batch and topic via relation (single query)
   const cls = await prisma.class.findFirst({
     where: {
       slug: classSlug,
       batch_id: batchId,
-      topic_id: topic.id,  // Add topic validation
+      topic: {
+        slug: topicSlug,
+      },
     },
+    select: { id: true },
   });
 
   if (!cls) {
@@ -110,40 +107,48 @@ export const getAssignedQuestionsOfClassService = async ({
     };
   }
 
-  // Get total count for pagination
-  const total = await prisma.questionVisibility.count({
-    where: whereClause,
-  });
-
   // Calculate pagination
-  const skip = (page - 1) * limit;
-  const totalPages = Math.ceil(total / limit);
+  const skip = (page - 1) * safeLimit;
 
-  const assigned = await prisma.questionVisibility.findMany({
-    where: whereClause,
-    include: {
-      question: {
-        include: {
-          topic: {
-            select: { topic_name: true, slug: true },
+  // Parallelize count and data queries
+  const [total, assigned] = await Promise.all([
+    prisma.questionVisibility.count({
+      where: whereClause,
+    }),
+    prisma.questionVisibility.findMany({
+      where: whereClause,
+      select: {
+        question: {
+          select: {
+            id: true,
+            question_name: true,
+            question_link: true,
+            platform: true,
+            level: true,
+            type: true,
+            created_at: true,
+            topic: {
+              select: { topic_name: true, slug: true },
+            },
           },
         },
       },
-    },
-    orderBy: {
-      assigned_at: "desc",
-    },
-    skip,
-    take: limit,
-  });
+      orderBy: {
+        assigned_at: "desc",
+      },
+      skip,
+      take: safeLimit,
+    }),
+  ]);
 
+  const totalPages = Math.ceil(total / safeLimit);
   const questions = assigned.map((qv) => qv.question);
 
   return {
     data: questions,
     pagination: {
       page,
-      limit,
+      limit: safeLimit,
       total,
       totalPages,
     },
@@ -347,19 +352,19 @@ export const getAllQuestionsWithFiltersService = async ({
   
   // Level filter
   if (filters.level) {
-    whereConditions.push('q.level = $' + (params.length + 1));
+    whereConditions.push('q.level = $' + (params.length + 1) + '::text::"Level"');
     params.push(filters.level.toUpperCase());
   }
   
   // Platform filter
   if (filters.platform) {
-    whereConditions.push('q.platform = $' + (params.length + 1));
+    whereConditions.push('q.platform = $' + (params.length + 1) + '::text::"Platform"');
     params.push(filters.platform.toUpperCase());
   }
   
   // Type filter
   if (filters.type) {
-    whereConditions.push('q.type = $' + (params.length + 1));
+    whereConditions.push('q.type = $' + (params.length + 1) + '::text::"QuestionType"');
     params.push(filters.type.toUpperCase());
   }
   
@@ -374,10 +379,19 @@ export const getAllQuestionsWithFiltersService = async ({
   
   const whereClause = whereConditions.join(' AND ');
   
-  // Add studentId parameters for JOIN conditions
-  const studentIdParamIndex = params.length + 1;
-  const bookmarkIdParamIndex = params.length + 2;
-  params.push(studentId, studentId);
+  // Calculate indices for studentId in JOIN conditions
+  // These will be the same for both queries since they come after filters
+  const filterParamsCount = params.length;
+  const studentIdParamIndex = filterParamsCount + 1;  // First studentId position
+  const bookmarkIdParamIndex = filterParamsCount + 2; // Second studentId position
+  const limitParamIndex = filterParamsCount + 3;      // LIMIT position
+  const offsetParamIndex = filterParamsCount + 4;     // OFFSET position
+  
+  // Main data query params: filter params + 2 studentIds + limit + offset
+  const dataParams = [...params, studentId, studentId, filters.limit, offset];
+  
+  // Count query params: filter params + 2 studentIds (no limit/offset)
+  const countParams = [...params, studentId, studentId];
   
   // Main data query with single JOIN
   const dataQuery = `
@@ -403,15 +417,12 @@ export const getAllQuestionsWithFiltersService = async ({
     LEFT JOIN "Bookmark" b ON q.id = b.question_id AND b.student_id = $${bookmarkIdParamIndex}
     WHERE ${whereClause}
     ORDER BY q.created_at DESC
-    LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
   `;
-  
-  // Add limit and offset parameters
-  params.push(filters.limit, offset);
   
   // Count query with same conditions
   const countQuery = `
-    SELECT COUNT(DISTINCT q.id)
+    SELECT COUNT(DISTINCT q.id) as count
     FROM "QuestionVisibility" qv
     JOIN "Class" c ON qv.class_id = c.id
     JOIN "Question" q ON qv.question_id = q.id
@@ -423,14 +434,15 @@ export const getAllQuestionsWithFiltersService = async ({
   
   const dbStartTime = Date.now();
   const [paginatedQuestions, totalCount] = await Promise.all([
-    prisma.$queryRawUnsafe(dataQuery, ...params),
-    prisma.$queryRawUnsafe(countQuery, ...params.slice(0, -2)) // Exclude limit/offset for count
+    prisma.$queryRawUnsafe(dataQuery, ...dataParams),
+    prisma.$queryRawUnsafe(countQuery, ...countParams)
   ]);
   
   // Convert BigInt to Number for JSON serialization
   const totalCountNumber = Number((totalCount as any[])[0]?.count || 0);
   
   const dbQueryTime = Date.now() - dbStartTime;
+  console.log(` [DB] RAW SQL queries completed in ${dbQueryTime}ms`);
   console.log(`🗄️ [DB] RAW SQL queries completed in ${dbQueryTime}ms`);
 
   // Map RAW SQL results to exact previous response structure

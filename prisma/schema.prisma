@@ -155,6 +155,7 @@ model QuestionVisibility {
   question    Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
 
   @@unique([class_id, question_id])
+  @@index([class_id])
   @@index([question_id])
 }
 

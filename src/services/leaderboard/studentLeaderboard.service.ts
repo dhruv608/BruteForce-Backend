@@ -56,7 +56,18 @@ export async function getStudentLeaderboard(
     
     // Determine effective filters
     const effectiveYear = filters.year || batchYear || new Date().getFullYear();
-    const effectiveCityId = filters.city && filters.city !== "all" ? cityId : undefined;
+    
+    // Look up city ID from city name when a specific city is selected
+    let effectiveCityId: number | undefined = undefined;
+    if (filters.city && filters.city !== "all") {
+      const cityRecord = await prisma.city.findFirst({
+        where: { city_name: filters.city },
+        select: { id: true }
+      });
+      if (cityRecord) {
+        effectiveCityId = cityRecord.id;
+      }
+    }
     
     // Build base query using city_id (integer comparison - much faster)
     const { whereClause, orderByClause, params } = buildLeaderboardBaseQueryByCityId(

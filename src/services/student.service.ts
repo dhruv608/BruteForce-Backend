@@ -26,7 +26,86 @@ export const getAllStudentsService = async (query: any) => {
             maxCityRank
         } = query;
 
+        // --- PAGINATION SAFETY ---
+        const parsedPage = Math.max(1, Number(page) || 1);
+        let parsedLimit = Number(limit) || 10;
+        // Cap limit to max 100
+        if (parsedLimit > 100) {
+            parsedLimit = 100;
+        }
+        if (parsedLimit < 1) {
+            parsedLimit = 10;
+        }
+        const skip = (parsedPage - 1) * parsedLimit;
+        const take = parsedLimit;
+
+        // Check if rank filters are provided
+        const hasRankFilters = minGlobalRank || maxGlobalRank || minCityRank || maxCityRank;
+
+        // --- STEP 1: Get student IDs matching rank filters (if any) ---
+        let rankFilteredStudentIds: number[] | null = null;
+        
+        if (hasRankFilters) {
+            const rankConditions: string[] = [];
+            const rankParams: (number | null)[] = [];
+            let paramIndex = 1;
+
+            if (minGlobalRank) {
+                rankConditions.push(`alltime_global_rank >= $${paramIndex}`);
+                rankParams.push(Number(minGlobalRank));
+                paramIndex++;
+            }
+            if (maxGlobalRank) {
+                rankConditions.push(`alltime_global_rank <= $${paramIndex}`);
+                rankParams.push(Number(maxGlobalRank));
+                paramIndex++;
+            }
+            if (minCityRank) {
+                rankConditions.push(`alltime_city_rank >= $${paramIndex}`);
+                rankParams.push(Number(minCityRank));
+                paramIndex++;
+            }
+            if (maxCityRank) {
+                rankConditions.push(`alltime_city_rank <= $${paramIndex}`);
+                rankParams.push(Number(maxCityRank));
+                paramIndex++;
+            }
+
+            const leaderboardFilterQuery = `
+                SELECT student_id
+                FROM "Leaderboard"
+                WHERE ${rankConditions.join(' AND ')}
+            `;
+
+            const leaderboardFiltered = await prisma.$queryRawUnsafe(
+                leaderboardFilterQuery, 
+                ...rankParams
+            ) as { student_id: number }[];
+            
+            rankFilteredStudentIds = leaderboardFiltered.map(entry => entry.student_id);
+            
+            // Early return if no students match rank filters
+            if (rankFilteredStudentIds.length === 0) {
+                return {
+                    students: [],
+                    pagination: {
+                        page: parsedPage,
+                        limit: take,
+                        total: 0,
+                        totalPages: 0,
+                        hasNextPage: false,
+                        hasPreviousPage: parsedPage > 1
+                    }
+                };
+            }
+        }
+
         const where: any = {};
+
+        // --- APPLY RANK FILTER TO WHERE (if applicable) ---
+        if (rankFilteredStudentIds) {
+            where.id = { in: rankFilteredStudentIds };
+        }
 
         // search filter
         if (search) {
@@ -66,10 +145,7 @@ export const getAllStudentsService = async (query: any) => {
             };
         }
 
-        // pagination
-        const skip = (Number(page) - 1) * Number(limit);
-        const take = Number(limit);
-
+        // --- STEP 2: Fetch students + count + leaderboard in parallel ---
         const [students, totalCount] = await Promise.all([
             // Get students with pagination
             prisma.student.findMany({
@@ -91,48 +167,31 @@ export const getAllStudentsService = async (query: any) => {
             prisma.student.count({ where })
         ]);
 
-        // Get leaderboard data separately with rank filters
+        // Get leaderboard data for the fetched students (PARALLEL)
         const studentIds = students.map(s => s.id);
-        let leaderboardQuery = `
-            SELECT 
-                student_id,
-                alltime_global_rank as global_rank,
-                alltime_city_rank as city_rank,
-                easy_solved,
-                medium_solved,
-                hard_solved
-            FROM "Leaderboard"
-            WHERE student_id = ANY($1)
-        `;
-
-        // Add rank filters if provided
-        const rankFilters = [];
-        if (minGlobalRank) rankFilters.push(`alltime_global_rank >= ${Number(minGlobalRank)}`);
-        if (maxGlobalRank) rankFilters.push(`alltime_global_rank <= ${Number(maxGlobalRank)}`);
-        if (minCityRank) rankFilters.push(`alltime_city_rank >= ${Number(minCityRank)}`);
-        if (maxCityRank) rankFilters.push(`alltime_city_rank <= ${Number(maxCityRank)}`);
         
-        if (rankFilters.length > 0) {
-            leaderboardQuery += ` AND ${rankFilters.join(' AND ')}`;
+        let leaderboardData: any[] = [];
+        if (studentIds.length > 0) {
+            leaderboardData = await prisma.$queryRaw`
+                SELECT 
+                    student_id,
+                    alltime_global_rank as global_rank,
+                    alltime_city_rank as city_rank,
+                    easy_solved,
+                    medium_solved,
+                    hard_solved
+                FROM "Leaderboard"
+                WHERE student_id = ANY(${studentIds}::int[])
+            `;
         }
-
-        const leaderboardData = await prisma.$queryRawUnsafe(leaderboardQuery, studentIds);
 
         // Create a map for quick lookup
         const leaderboardMap = new Map(
-            (leaderboardData as any[]).map(entry => [entry.student_id, entry])
+            leaderboardData.map(entry => [entry.student_id, entry])
         );
 
-        // Filter students based on rank availability if rank filters are applied
-        let filteredStudents = students;
-        if (rankFilters.length > 0) {
-            filteredStudents = students.filter(student => 
-                leaderboardMap.has(student.id)
-            );
-        }
-
-        const formatted = filteredStudents.map((student) => {
-            const leaderboard = leaderboardMap.get(student.id);
+        // Format response (NO in-memory filtering - all filtering done at DB)
+        const formatted = students.map((student) => {
             return {
                 id: student.id,
                 name: student.name,
@@ -148,13 +207,13 @@ export const getAllStudentsService = async (query: any) => {
 
         // Calculate pagination info
         const totalPages = Math.ceil(totalCount / take);
-        const hasNextPage = Number(page) < totalPages;
-        const hasPreviousPage = Number(page) > 1;
+        const hasNextPage = parsedPage < totalPages;
+        const hasPreviousPage = parsedPage > 1;
 
         return {
             students: formatted,
             pagination: {
-                page: Number(page),
+                page: parsedPage,
                 limit: take,
                 total: totalCount,
                 totalPages,

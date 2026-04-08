@@ -101,44 +101,37 @@ export const getAllQuestionsService = async ({
 
   const where: any = {};
 
-  // 🔎 Topic filter
+  //  Pagination safety - enforce max limit
+  const validatedLimit = Math.min(Math.max(limit, 1), 100);
+  const skip = (page - 1) * validatedLimit;
+
+  //  Topic filter (using relation filter instead of separate query)
   if (topicSlug && topicSlug !== 'all') {
-    const topic = await prisma.topic.findUnique({
-      where: { slug: topicSlug },
-      select: { id: true }
-    });
-    
-    if (!topic) {
-      throw new ApiError(400, "Topic not found");
-    }
-    
-    where.topic_id = topic.id;
+    where.topic = { slug: topicSlug };
   }
 
-  // 🔎 Level filter
+  //  Level filter
   if (level) {
     where.level = level;
   }
 
-  // 🔎 Platform filter
+  //  Platform filter
   if (platform) {
     where.platform = platform;
   }
 
-  // 🔎 Type filter
+  //  Type filter
   if (type) {
     where.type = type;
   }
 
-  // 🔎 Search filter
+  //  Search filter
   if (search) {
     where.question_name = {
       contains: search,
       mode: "insensitive",
     };
   }
-
-  const skip = (page - 1) * limit;
 
   const [questions, total] = await prisma.$transaction([
     prisma.question.findMany({
@@ -155,19 +148,30 @@ export const getAllQuestionsService = async ({
         created_at: "desc",
       },
       skip,
-      take: limit,
+      take: validatedLimit,
     }),
 
     prisma.question.count({ where }),
   ]);
+
+  // 🔎 Validate topic exists if topic filter was applied but no results
+  if (topicSlug && topicSlug !== 'all' && questions.length === 0) {
+    const topicExists = await prisma.topic.count({
+      where: { slug: topicSlug },
+      take: 1,
+    });
+    if (topicExists === 0) {
+      throw new ApiError(400, "Topic not found");
+    }
+  }
 
   return {
     data: questions,
     pagination: {
       total,
       page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      limit: validatedLimit,
+      totalPages: Math.ceil(total / validatedLimit),
     },
   };
 };

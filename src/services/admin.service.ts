@@ -376,79 +376,71 @@ export const getAdminStatsService = async (batchId: number) => {
     throw new ApiError(404, "Batch not found", [], "BATCH_NOT_FOUND");
   }
 
-  // Get total classes for this batch
-  const totalClasses = await prisma.class.count({
-    where: { batch_id: batchId }
-  });
+  // Parallelize independent count queries
+  const [totalClassesResult, totalStudentsResult, totalTopicsResult, questionStatsResult] = await Promise.all([
+    // Total classes for this batch
+    prisma.class.count({
+      where: { batch_id: batchId }
+    }),
 
-  // Get total students for this batch
-  const totalStudents = await prisma.student.count({
-    where: { batch_id: batchId }
-  });
+    // Total students for this batch
+    prisma.student.count({
+      where: { batch_id: batchId }
+    }),
 
-  // Get all questions assigned to this batch's classes
-  const assignedQuestions = await prisma.questionVisibility.findMany({
-    where: {
-      class: {
-        batch_id: batchId
-      }
-    },
-    include: {
-      question: {
-        select: {
-          level: true,
-          platform: true,
-          type: true
-        }
-      }
-    }
-  });
+    // Total topics discussed (distinct topic_ids from classes in this batch)
+    prisma.$queryRaw<{ count: BigInt }[]>`
+      SELECT COUNT(DISTINCT topic_id) as count
+      FROM "Class"
+      WHERE batch_id = ${batchId}
+    `,
 
-  const totalQuestions = assignedQuestions.length;
+    // All question aggregations in single SQL query with FILTER
+    prisma.$queryRaw<{ total_questions: BigInt; homework: BigInt; classwork: BigInt; easy: BigInt; medium: BigInt; hard: BigInt; leetcode: BigInt; gfg: BigInt; other: BigInt; interviewbit: BigInt; }[]>`
+      SELECT 
+        COUNT(*) as total_questions,
+        COUNT(*) FILTER (WHERE q.type = 'HOMEWORK') as homework,
+        COUNT(*) FILTER (WHERE q.type = 'CLASSWORK') as classwork,
+        COUNT(*) FILTER (WHERE q.level = 'EASY') as easy,
+        COUNT(*) FILTER (WHERE q.level = 'MEDIUM') as medium,
+        COUNT(*) FILTER (WHERE q.level = 'HARD') as hard,
+        COUNT(*) FILTER (WHERE q.platform = 'LEETCODE') as leetcode,
+        COUNT(*) FILTER (WHERE q.platform = 'GFG') as gfg,
+        COUNT(*) FILTER (WHERE q.platform = 'OTHER') as other,
+        COUNT(*) FILTER (WHERE q.platform = 'INTERVIEWBIT') as interviewbit
+      FROM "QuestionVisibility" qv
+      JOIN "Class" c ON qv.class_id = c.id
+      JOIN "Question" q ON qv.question_id = q.id
+      WHERE c.batch_id = ${batchId}
+    `
+  ]);
 
-  // Calculate questions by type
-  const questionsByType = {
-    homework: assignedQuestions.filter((qc: any) => qc.question.type === 'HOMEWORK').length,
-    classwork: assignedQuestions.filter((qc: any) => qc.question.type === 'CLASSWORK').length
-  };
-
-  // Calculate questions by level
-  const questionsByLevel = {
-    easy: assignedQuestions.filter((qc: any) => qc.question.level === 'EASY').length,
-    medium: assignedQuestions.filter((qc: any) => qc.question.level === 'MEDIUM').length,
-    hard: assignedQuestions.filter((qc: any) => qc.question.level === 'HARD').length
-  };
-
-  // Calculate questions by platform
-  const questionsByPlatform = {
-    leetcode: assignedQuestions.filter((qc: any) => qc.question.platform === 'LEETCODE').length,
-    gfg: assignedQuestions.filter((qc: any) => qc.question.platform === 'GFG').length,
-    other: assignedQuestions.filter((qc: any) => qc.question.platform === 'OTHER').length,
-    interviewbit: assignedQuestions.filter((qc: any) => qc.question.platform === 'INTERVIEWBIT').length
-  };
-
-  // Get total topics discussed for this batch
-  const totalTopicsDiscussed = await prisma.topic.count({
-    where: {
-      classes: {
-        some: {
-          batch_id: batchId
-        }
-      }
-    }
-  });
+  // Convert BigInt results to Number (PostgreSQL COUNT returns BIGINT)
+  const stats = questionStatsResult[0];
 
   return {
     batch_id: batchId,
     batch_name: batch.batch_name,
     city: batch.city.city_name,
     year: batch.year,
-    total_classes: totalClasses,
-    total_questions: totalQuestions,
-    total_students: totalStudents,
-    questions_by_type: questionsByType,
-    questions_by_level: questionsByLevel,
-    questions_by_platform: questionsByPlatform,
-    total_topics_discussed: totalTopicsDiscussed
+    total_classes: totalClassesResult,
+    total_questions: Number(stats.total_questions),
+    total_students: totalStudentsResult,
+    questions_by_type: {
+      homework: Number(stats.homework),
+      classwork: Number(stats.classwork)
+    },
+    questions_by_level: {
+      easy: Number(stats.easy),
+      medium: Number(stats.medium),
+      hard: Number(stats.hard)
+    },
+    questions_by_platform: {
+      leetcode: Number(stats.leetcode),
+      gfg: Number(stats.gfg),
+      other: Number(stats.other),
+      interviewbit: Number(stats.interviewbit)
+    },
+    total_topics_discussed: Number(totalTopicsResult[0].count)
   };
 };

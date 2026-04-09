@@ -153,23 +153,6 @@ export const fetchSubmissionCounts = async (studentId: number, startDate: Date):
   return counts;
 };
 
-/**
- * Get batch start month using the already-fetched assigned dates
- * This avoids a separate slow MIN() query
- */
-export const getBatchStartMonthFromDates = (assignedDates: Set<string>, batchYear: number | null): Date => {
-  if (assignedDates.size === 0) {
-    // Fallback to batch year or today
-    return batchYear ? new Date(batchYear, 0, 1) : new Date();
-  }
-  
-  // Find earliest date from assigned dates
-  const dates = Array.from(assignedDates).sort();
-  const earliestDate = new Date(dates[0]);
-  
-  // Return first day of that month
-  return new Date(earliestDate.getFullYear(), earliestDate.getMonth(), 1);
-};
 
 /**
  * Legacy: Get batch start month (first question assignment date) - CACHED
@@ -235,11 +218,3 @@ export const getTodayCount = (submissionCounts: Map<string, number>): number => 
   return submissionCounts.get(today) || 0;
 };
 
-/**
- * Invalidate heatmap cache for a student
- * Call this when student solves a new question
- */
-export const invalidateStudentHeatmapCache = async (studentId: number, batchId: number): Promise<void> => {
-  const pattern = `heatmap:${studentId}:${batchId}:*`;
-  await cacheService.delPattern(pattern);
-};

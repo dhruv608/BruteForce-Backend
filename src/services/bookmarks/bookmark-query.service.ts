@@ -24,9 +24,15 @@ export const getBookmarksService = async (
     sort,
     filter
   });
-  
-  // 1. Try cache first
-  const cached = await redis.get(cacheKey);
+
+  // 1. Try cache first (with error handling for Redis connection issues)
+  let cached = null;
+  try {
+    cached = await redis.get(cacheKey);
+  } catch (redisError) {
+    console.warn('[REDIS WARNING] Failed to connect to Redis, proceeding with database query:', redisError);
+  }
+
   if (cached) {
     console.log('=== REDIS CACHE HIT ===');
     console.log(`[CACHE HIT] bookmarks for student ${studentId}`);
@@ -35,7 +41,7 @@ export const getBookmarksService = async (
     console.log('========================');
     return JSON.parse(cached);
   }
-  
+
   console.log('=== DATABASE FETCH ===');
   console.log(`[CACHE MISS] bookmarks for student ${studentId}`);
   console.log(`Cache Key: ${cacheKey}`);
@@ -171,14 +177,18 @@ export const getBookmarksService = async (
 
     // 3. Cache result with modern Redis SET syntax (avoid duplicate JSON.stringify)
     const serializedResult = JSON.stringify(result);
-    await setWithTTL(cacheKey, serializedResult, CACHE_TTL.studentBookmarks);
-    
-    console.log('=== CACHE STORAGE ===');
-    console.log(`[CACHE STORE] bookmarks for student ${studentId}`);
-    console.log(`Cache Key: ${cacheKey}`);
-    console.log(`TTL: ${CACHE_TTL.studentBookmarks} seconds (${CACHE_TTL.studentBookmarks/60} minutes)`);
-    console.log(`Data Source: Database Query -> Cached in Redis`);
-    console.log('====================');
+    try {
+      await setWithTTL(cacheKey, serializedResult, CACHE_TTL.studentBookmarks);
+
+      console.log('=== CACHE STORAGE ===');
+      console.log(`[CACHE STORE] bookmarks for student ${studentId}`);
+      console.log(`Cache Key: ${cacheKey}`);
+      console.log(`TTL: ${CACHE_TTL.studentBookmarks} seconds (${CACHE_TTL.studentBookmarks/60} minutes)`);
+      console.log(`Data Source: Database Query -> Cached in Redis`);
+      console.log('====================');
+    } catch (redisError) {
+      console.warn('[REDIS WARNING] Failed to cache result in Redis:', redisError);
+    }
 
     return result;
 

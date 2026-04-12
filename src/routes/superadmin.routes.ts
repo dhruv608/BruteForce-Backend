@@ -2,6 +2,20 @@ import { Router } from "express";
 import { verifyToken } from "../middlewares/auth.middleware";
 import { isSuperAdmin } from "../middlewares/role.middleware";
 import { extractAdminInfo } from "../middlewares/admin.middleware";
+import { validateBody, validateParams } from "../middlewares/validate.middleware";
+import {
+  createCitySchema,
+  updateCitySchema,
+  createBatchSchema,
+  updateBatchSchema,
+  cityIdParamSchema,
+  batchIdParamSchema,
+} from "../schemas/superadmin.schema";
+import {
+  createAdminSchema,
+  updateAdminSchema,
+  adminIdParamSchema,
+} from "../schemas/admin.schema";
 // City controllers
 import { 
   createCity, 
@@ -24,7 +38,6 @@ import { getSuperAdminStats, getCurrentSuperAdminController } from "../controlle
 
 const router = Router();
 
-
 // All routes require authentication + SUPERADMIN role
 router.use(verifyToken, isSuperAdmin, extractAdminInfo);
 
@@ -32,28 +45,22 @@ router.use(verifyToken, isSuperAdmin, extractAdminInfo);
 router.get("/me", getCurrentSuperAdminController);
 
 // ===== CITY =====
-
-router.post("/cities", createCity);
+router.post("/cities", validateBody(createCitySchema), createCity);
 router.get("/cities", getAllCities);
-router.patch("/cities/:id", updateCity);
-router.delete("/cities/:id", deleteCity);
-
+router.patch("/cities/:id", validateParams(cityIdParamSchema), validateBody(updateCitySchema), updateCity);
+router.delete("/cities/:id", validateParams(cityIdParamSchema), deleteCity);
 
 // ===== BATCH =====
 router.get("/batches", getAllBatches);
-router.post("/batches", createBatch);
-router.patch("/batches/:id", updateBatch);
-router.delete("/batches/:id", deleteBatch);
-
-
+router.post("/batches", validateBody(createBatchSchema), createBatch);
+router.patch("/batches/:id", validateParams(batchIdParamSchema), validateBody(updateBatchSchema), updateBatch);
+router.delete("/batches/:id", validateParams(batchIdParamSchema), deleteBatch);
 
 // ===== ADMIN MANAGEMENT =====
-router.post("/admins", createAdminController);                    // Create admin (SuperAdmin - auto fetch city_id from batch)
-router.get("/admins", getAllAdminsController);             // Get all admins with filters
-router.patch("/admins/:id", updateAdminController);           // Update admin (SuperAdmin - only role & batch_id allowed)
-router.delete("/admins/:id", deleteAdminController);         // Delete admin
-
-
+router.post("/admins", validateBody(createAdminSchema), createAdminController);
+router.get("/admins", getAllAdminsController);
+router.patch("/admins/:id", validateParams(adminIdParamSchema), validateBody(updateAdminSchema), updateAdminController);
+router.delete("/admins/:id", validateParams(adminIdParamSchema), deleteAdminController);
 
 // ===== SYSTEM STATS =====
 router.get("/stats", getSuperAdminStats);                       // Get system-wide statistics                // Get batch-specific admin statistics

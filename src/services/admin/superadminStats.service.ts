@@ -7,7 +7,7 @@ export const getSuperAdminStatsService = async () => {
             totalCities,
             totalBatches,
             totalAdmins,
-            
+            citiesWithBatches
         ] = await Promise.all([
             prisma.city.count(),
             prisma.batch.count(),
@@ -16,19 +16,36 @@ export const getSuperAdminStatsService = async () => {
                     role: 'TEACHER'
                 }
             }),
-            
+            prisma.city.findMany({
+                select: {
+                    id: true,
+                    city_name: true,
+                    _count: {
+                        select: {
+                            batches: true
+                        }
+                    }
+                }
+            })
         ]);
+
+        // Format city breakdown for chart
+        const cityBreakdown = citiesWithBatches
+            .map(city => ({
+                name: city.city_name,
+                count: city._count.batches
+            }))
+            .sort((a, b) => b.count - a.count);
 
         return {
             totalCities,
             totalBatches,
             totalAdmins,
-            
+            cityBreakdown
         };
     } catch (error) {
         console.error("System stats error:", error);
         throw new ApiError(400, "Failed to fetch system statistics");
-        
     }
 };
 

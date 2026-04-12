@@ -37,23 +37,10 @@ export const getAdminStats = asyncHandler(async (req: Request, res: Response) =>
 
     try {
 
+        // batch_id already validated by Zod middleware
         const { batch_id } = req.body;
 
-
-
-        // Validate batch_id
-
-        if (!batch_id || isNaN(parseInt(batch_id))) {
-
-            throw new ApiError(400, "Valid batch_id is required", [], "VALIDATION_ERROR");
-
-        }
-
-
-
-        const batchId = parseInt(batch_id);
-
-        const stats = await getAdminStatsService(batchId);
+        const stats = await getAdminStatsService(batch_id);
 
 
 
@@ -83,19 +70,8 @@ export const createAdminController = asyncHandler(async (req: Request, res: Resp
 
     try {
 
+        // Admin data already validated by Zod middleware
         const adminData = req.body;
-
-
-
-        // Validate required fields (removed username)
-
-        if (!adminData.name || !adminData.email || !adminData.password) {
-
-            throw new ApiError(400, "Missing required fields: name, email, password", [], "VALIDATION_ERROR");
-
-        }
-
-
 
         const newAdmin = await createAdminService(adminData);
 
@@ -173,21 +149,11 @@ export const updateAdminController = asyncHandler(async (req: Request, res: Resp
 
     try {
 
-        const { id } = req.params;
-
+        // ID and data already validated by Zod middleware
+        const { id } = req.params as unknown as { id: number };
         const updateData = req.body;
 
-
-
-        if (!id || isNaN(parseInt(id as string))) {
-
-            throw new ApiError(400, "Valid admin ID is required", [], "VALIDATION_ERROR");
-
-        }
-
-
-
-        const updatedAdmin = await updateAdminService(parseInt(id as string), updateData);
+        const updatedAdmin = await updateAdminService(id, updateData);
 
 
 
@@ -223,19 +189,10 @@ export const deleteAdminController = asyncHandler(async (req: Request, res: Resp
 
     try {
 
-        const { id } = req.params;
+        // ID already validated by Zod middleware
+        const { id } = req.params as unknown as { id: number };
 
-
-
-        if (!id || isNaN(parseInt(id as string))) {
-
-            throw new ApiError(400, "Valid admin ID is required", [], "VALIDATION_ERROR");
-
-        }
-
-
-
-        const result = await deleteAdminService(parseInt(id as string));
+        const result = await deleteAdminService(id);
 
 
 

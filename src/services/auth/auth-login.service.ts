@@ -17,11 +17,7 @@ export const loginStudent = async (credentials: {
 }) => {
   const { email, username, password } = credentials;
 
-  if ((!email && !username) || !password) {
-    throw new ApiError(400, 'Either email or username with password are required');
-  }
-
-  // Validate email domain if email is provided
+  // Validate email domain if email is provided (custom validation beyond Zod)
   if (email) {
     const emailValidation = validateEmail(email);
     if (!emailValidation.isValid) {
@@ -105,10 +101,6 @@ export const loginAdmin = async (credentials: {
   password: string;
 }) => {
   const { email, password } = credentials;
-
-  if (!email || !password) {
-    throw new ApiError(400, 'Email and password are required');
-  }
 
   const admin = await prisma.admin.findUnique({
     where: { email },

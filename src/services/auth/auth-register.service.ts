@@ -68,12 +68,7 @@ export const registerStudent = async (data: {
 }) => {
   const { name, email, username, password, enrollment_id, batch_id, leetcode_id, gfg_id } = data;
 
-  // Validation
-  if (!name || !email || !username || !password || !batch_id) {
-    throw new ApiError(400, 'Name, email, username, password, and batch_id are required', [], "REQUIRED_FIELD");
-  }
-
-  // Validate email domain
+  // Validate email domain (custom validation beyond Zod)
   const emailValidation = validateEmail(email);
   if (!emailValidation.isValid) {
     throw new ApiError(400, emailValidation.error, [], "INVALID_EMAIL");
@@ -100,10 +95,7 @@ export const registerStudent = async (data: {
     throw new ApiError(400, 'Invalid batch_id', [], "BATCH_NOT_FOUND");
   }
 
-  // Validate password strength
-  validatePasswordForAuth(password);
-
-  // Hash password
+  // Hash password (Zod already validates minimum length)
   const password_hash = await hashPassword(password);
 
   // Create student

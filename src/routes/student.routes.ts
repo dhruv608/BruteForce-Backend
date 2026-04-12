@@ -4,6 +4,17 @@ import { isStudent } from "../middlewares/role.middleware";
 import { extractStudentInfo } from "../middlewares/student.middleware";
 import { optionalAuth } from "../middlewares/optionalAuth.middleware";
 import { heavyLimiter, apiLimiter } from "../middlewares/rateLimiter";
+import { validateBody, validateParams, validateQuery } from "../middlewares/validate.middleware";
+import {
+  updateProfileSchema,
+  updateUsernameSchema,
+} from "../schemas/student.schema";
+import {
+  createBookmarkSchema,
+  updateBookmarkSchema,
+  bookmarkQuestionIdParamSchema,
+  bookmarkQuerySchema,
+} from "../schemas/bookmark.schema";
 import { getTopicsWithBatchProgress, getTopicOverviewWithClassesSummary } from "../controllers/topic.controller";
 import { getClassDetailsWithFullQuestions } from "../controllers/class.controller";
 import { getAllQuestionsWithFilters } from "../controllers/questionVisibility.controller";
@@ -28,7 +39,7 @@ router.use(verifyToken, isStudent, extractStudentInfo);
 router.get("/me", getCurrentStudent);
 
 // Update current student profile (coding profiles, etc.)
-router.put("/me", updateStudentProfile);
+router.put("/me", validateBody(updateProfileSchema), updateStudentProfile);
 
 // Batches
 router.get("/batches", getAllBatches);
@@ -54,12 +65,12 @@ router.post("/leaderboard", heavyLimiter, getStudentLeaderboard); // Single stud
 router.post("/profile-image", uploadSingle, uploadProfileImage);  // Upload/Update profile image
 router.delete("/profile-image", deleteProfileImage);              // Delete profile image
 
-router.patch("/username", updateUsername); // Update username only
+router.patch("/username", validateBody(updateUsernameSchema), updateUsername); // Update username only
 
 // ===== BOOKMARK ROUTES =====
-router.get("/bookmarks", getBookmarks); // Get all bookmarks with pagination and filtering
-router.post("/bookmarks", addBookmark); // Add new bookmark
-router.put("/bookmarks/:questionId", updateBookmark); // Update bookmark description
-router.delete("/bookmarks/:questionId", deleteBookmark); // Delete bookmark
+router.get("/bookmarks", validateQuery(bookmarkQuerySchema), getBookmarks); // Get all bookmarks with pagination and filtering
+router.post("/bookmarks", validateBody(createBookmarkSchema), addBookmark); // Add new bookmark
+router.put("/bookmarks/:questionId", validateParams(bookmarkQuestionIdParamSchema), validateBody(updateBookmarkSchema), updateBookmark); // Update bookmark description
+router.delete("/bookmarks/:questionId", validateParams(bookmarkQuestionIdParamSchema), deleteBookmark); // Delete bookmark
 
 export default router;

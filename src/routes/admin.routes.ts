@@ -4,8 +4,32 @@ import { isAdmin, isTeacherOrAbove } from "../middlewares/role.middleware";
 import { extractAdminInfo } from "../middlewares/admin.middleware";
 import { resolveBatch } from "../middlewares/batch.middleware";
 import { heavyLimiter, apiLimiter } from "../middlewares/rateLimiter";
-import {  getAllCities } from "../controllers/city.controller";
-import {  getAllBatches } from "../controllers/batch.controller";
+import { validateBody, validateParams, validateQuery } from "../middlewares/validate.middleware";
+import {
+  createStudentSchema,
+  updateStudentSchema,
+  studentIdParamSchema,
+  studentQuerySchema,
+} from "../schemas/student.schema";
+import {
+  createQuestionSchema,
+  updateQuestionSchema,
+  questionIdParamSchema,
+  questionQuerySchema,
+} from "../schemas/question.schema";
+import {
+  createTopicSchema,
+  updateTopicSchema,
+  createClassSchema,
+  updateClassSchema,
+  topicSlugParamSchema,
+  classIdParamSchema,
+  classSlugParamSchema,
+  assignQuestionsSchema,
+} from "../schemas/topic.schema";
+import { batchStatsSchema } from "../schemas/admin.schema";
+import { getAllCities } from "../controllers/city.controller";
+import { getAllBatches } from "../controllers/batch.controller";
 import { createTopic, deleteTopic, getAllTopics, getTopicsForBatch, updateTopic, createTopicsBulk, bulkTestUploadQuestions } from "../controllers/topic.controller";
 import { createQuestion, deleteQuestion, getAllQuestions, getAssignedQuestionsController, updateQuestion, bulkUploadQuestions } from "../controllers/question.controller";
 import { uploadImage } from "../middlewares/imageUpload.middleware";
@@ -37,31 +61,33 @@ router.get("/batches", getAllBatches);
 
 // Global Topics
 router.get("/topics", getAllTopics);
-router.post("/topics", isTeacherOrAbove, uploadImage.single('photo'), createTopic);
-router.put("/topics/:topicSlug", isTeacherOrAbove, uploadImage.single('photo'), updateTopic);
-router.patch("/topics/:topicSlug", isTeacherOrAbove, uploadImage.single('photo'), updateTopic);
-router.delete("/topics/:topicSlug", isTeacherOrAbove, deleteTopic);
+router.post("/topics", isTeacherOrAbove, uploadImage.single('photo'), validateBody(createTopicSchema), createTopic);
+router.put("/topics/:topicSlug", isTeacherOrAbove, uploadImage.single('photo'), validateParams(topicSlugParamSchema), validateBody(updateTopicSchema), updateTopic);
+router.patch("/topics/:topicSlug", isTeacherOrAbove, uploadImage.single('photo'), validateParams(topicSlugParamSchema), validateBody(updateTopicSchema), updateTopic);
+router.delete("/topics/:topicSlug", isTeacherOrAbove, validateParams(topicSlugParamSchema), deleteTopic);
 
 // Bulk Operation for Topics
 router.post("/topics/bulk-upload", isTeacherOrAbove, createTopicsBulk);
-
 
 // Bulk Test Upload Questions contain topic slug
 router.post("/bulkTestUpload", isTeacherOrAbove, upload.single("file"), bulkTestUploadQuestions);
 
 // questions gloabal 
-router.post("/questions", isTeacherOrAbove, createQuestion);
+router.post("/questions", isTeacherOrAbove, validateBody(createQuestionSchema), createQuestion);
 
-router.get("/questions", getAllQuestions);
+router.get("/questions", validateQuery(questionQuerySchema), getAllQuestions);
 
 router.patch(
   "/questions/:id",
   isTeacherOrAbove,
+  validateParams(questionIdParamSchema),
+  validateBody(updateQuestionSchema),
   updateQuestion
 );
 router.delete(
   "/questions/:id",
   isTeacherOrAbove,
+  validateParams(questionIdParamSchema),
   deleteQuestion
 );
 
@@ -83,23 +109,22 @@ router.post(
   bulkStudentUploadController
 );
 
-
 // Admin Statistics
-router.post("/stats", getAdminStats);
+router.post("/stats", validateBody(batchStatsSchema), getAdminStats);
 
 // Roles
 router.get("/roles", getRolesController);
 
 router.post("/leaderboard", heavyLimiter, getAdminLeaderboard); // Single admin leaderboard with pagination and search
 
-router.patch("/students/:id", isTeacherOrAbove, isAdmin, updateStudentDetails);
+router.patch("/students/:id", isTeacherOrAbove, isAdmin, validateParams(studentIdParamSchema), validateBody(updateStudentSchema), updateStudentDetails);
 
 // Delete (Hard Delete)
-router.delete("/students/:id", isTeacherOrAbove, isAdmin, deleteStudentDetails);
+router.delete("/students/:id", isTeacherOrAbove, isAdmin, validateParams(studentIdParamSchema), deleteStudentDetails);
 
-router.get("/students", getAllStudentsController);
+router.get("/students", validateQuery(studentQuerySchema), getAllStudentsController);
 // router.get("/students/:username", getStudentReportController);
-router.post("/students", isAdmin,isTeacherOrAbove, createStudentController);
+router.post("/students", isAdmin, isTeacherOrAbove, validateBody(createStudentSchema), createStudentController);
 
 router.post("/students/progress", isTeacherOrAbove, isAdmin, addStudentProgressController);
 
@@ -122,6 +147,8 @@ router.post(
   "/:batchSlug/topics/:topicSlug/classes",
   isTeacherOrAbove,
   uploadPdf,
+  validateParams(topicSlugParamSchema),
+  validateBody(createClassSchema),
   createClassInTopic
 );
 
@@ -135,6 +162,8 @@ router.patch(
   "/:batchSlug/topics/:topicSlug/classes/:classSlug",
   isTeacherOrAbove,
   uploadPdf,
+  validateParams(classSlugParamSchema),
+  validateBody(updateClassSchema),
   updateClass
 );
 
@@ -148,6 +177,8 @@ router.delete(
 router.post(
   "/:batchSlug/topics/:topicSlug/classes/:classSlug/questions",
   isTeacherOrAbove,
+  validateParams(classSlugParamSchema),
+  validateBody(assignQuestionsSchema),
   assignQuestionsToClass
 );
 

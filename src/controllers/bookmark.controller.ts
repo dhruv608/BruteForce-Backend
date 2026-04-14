@@ -6,6 +6,7 @@ import {
   deleteBookmarkService,
 } from "../services/bookmarks/bookmark-crud.service";
 import { ApiError } from "../utils/ApiError";
+import { CacheInvalidation } from "../utils/cacheInvalidation";
 import { ExtendedRequest } from "../types";
 import { asyncHandler } from "../utils/asyncHandler";
 import { bookmarkQuerySchema } from "../schemas/bookmark.schema";
@@ -76,6 +77,9 @@ export const addBookmark = asyncHandler(async (req: ExtendedRequest, res: Respon
 
   const bookmark = await addBookmarkService(student.id, question_id, description);
 
+  // Invalidate bookmark cache for this student
+  await CacheInvalidation.invalidateBookmarksForStudent(student.id);
+
   res.status(201).json({
     success: true,
     data: bookmark
@@ -98,6 +102,9 @@ export const updateBookmark = asyncHandler(async (req: ExtendedRequest, res: Res
 
   const bookmark = await updateBookmarkService(student.id, questionId, description);
 
+  // Invalidate bookmark cache for this student
+  await CacheInvalidation.invalidateBookmarksForStudent(student.id);
+
   res.status(200).json({
     success: true,
     data: bookmark
@@ -118,6 +125,9 @@ export const deleteBookmark = asyncHandler(async (req: ExtendedRequest, res: Res
   const { questionId } = req.params as unknown as { questionId: number };
 
   await deleteBookmarkService(student.id, questionId);
+
+  // Invalidate bookmark cache for this student
+  await CacheInvalidation.invalidateBookmarksForStudent(student.id);
 
   res.status(200).json({
     success: true,

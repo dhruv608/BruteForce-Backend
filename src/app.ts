@@ -1,6 +1,8 @@
+import dotenv from 'dotenv';
+dotenv.config(); // Load environment variables BEFORE any imports that use them
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import cookieParser from 'cookie-parser';
 import { NotFoundError } from './utils/ApiError';
@@ -16,7 +18,6 @@ import { apiLimiter } from './middlewares/rateLimiter';
 import './workers/studentSync.worker'; // Initialize BullMQ worker
 import './queues/studentSync.events'; // Initialize QueueEvents
 import helmet from 'helmet';
-dotenv.config();
 
 const app = express();
 app.use(

@@ -99,16 +99,12 @@ export const updateUsernameService = async (
   // Invalidate caches when username changes
   await CacheInvalidation.invalidateAllLeaderboards();
   
-  // Invalidate student:me cache
-  const meCacheKey = buildCacheKey(`student:me:${studentId}`, {});
-  await redis.del(meCacheKey);
-  
-  // Invalidate student profile cache
+  // Invalidate student profile cache (this now sweeps /me and the new public profile)
   await CacheInvalidation.invalidateStudentProfile(studentId);
   
-  // Invalidate public profile cache for old username
-  if (oldStudent?.username) {
-    await redis.del(`student:profile:public:${oldStudent.username}`);
+  // Invalidate public profile cache for the OLD username specifically
+  if (oldStudent?.username && oldStudent.username !== username) {
+    await CacheInvalidation.invalidateStudentProfile(studentId, oldStudent.username);
   }
   
   // Invalidate heatmap cache

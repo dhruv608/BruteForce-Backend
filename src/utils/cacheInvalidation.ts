@@ -1,5 +1,6 @@
 import redis from '../config/redis';
 import { deleteByPattern } from './redisUtils';
+import prisma from '../config/prisma';
 
 export class CacheInvalidation {
   
@@ -9,16 +10,30 @@ export class CacheInvalidation {
     // or stringified params, so an exact key deletion without trailing colons will miss.
     const patterns = [
       `student:profile:${studentId}:*`,
-      `student:profile:public:${studentId}:*`,
+      `student:me:${studentId}:*`,
       `student:assigned_questions:${studentId}:*`,
       `student:topics:${studentId}:*`,
       `student:topic_overview:${studentId}:*`,
       `student:class_progress:${studentId}:*`,
       `student:bookmarks:${studentId}:*`,
-      `student:recent_questions:${studentId}:*`
+      `student:recent_questions:${studentId}:*`,
+      `student:heatmap:${studentId}:*`
     ];
     // Delete pattern-based keys using SCAN
     await Promise.all(patterns.map(pattern => deleteByPattern(pattern)));
+    
+    // Invalidate public profile (which uses username as its cache key)
+    try {
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        select: { username: true }
+      });
+      if (student?.username) {
+        await deleteByPattern(`student:profile:public:${student.username}*`);
+      }
+    } catch (e) {
+      console.error('Error fetching student for public profile cache invalidation', e);
+    }
     
     // Also invalidate leaderboards (student rank changed)
     await this.invalidateAllLeaderboards();
@@ -115,12 +130,33 @@ export class CacheInvalidation {
   }
   
   // Student-specific profile invalidation
-  static async invalidateStudentProfile(studentId: number) {
+  static async invalidateStudentProfile(studentId: number, providedUsername?: string) {
     const patterns = [
       `student:profile:${studentId}:*`,
-      `student:profile:public:${studentId}:*`
+      `student:me:${studentId}:*`
     ];
     
+    let username = providedUsername;
+    
+    // If username is not provided, fetch it to invalidate the public profile correctly
+    if (!username) {
+      try {
+        const student = await prisma.student.findUnique({
+          where: { id: studentId },
+          select: { username: true }
+        });
+        if (student?.username) {
+          username = student.username;
+        }
+      } catch (e) {
+        console.error('Error fetching student for public profile cache invalidation', e);
+      }
+    }
+
+    if (username) {
+      patterns.push(`student:profile:public:${username}*`);
+    }
+
     await Promise.all(patterns.map(pattern => deleteByPattern(pattern)));
   }
   

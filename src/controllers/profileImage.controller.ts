@@ -23,11 +23,6 @@ export const uploadProfileImage = asyncHandler(async (req: StudentRequest, res: 
 
             // Invalidate all profile-related caches for this student
             await CacheInvalidation.invalidateStudentProfile(studentId);
-            // Invalidate student:me cache
-            const meCacheKey = buildCacheKey(`student:me:${studentId}`, {});
-            await redis.del(meCacheKey);
-            // Invalidate heatmap cache
-            await redis.del(`student:heatmap:${studentId}:*`);
 
             res.status(201).json({
               success: true,
@@ -57,11 +52,6 @@ export const deleteProfileImage = asyncHandler(async (req: StudentRequest, res: 
 
             // Invalidate all profile-related caches for this student
             await CacheInvalidation.invalidateStudentProfile(studentId);
-            // Invalidate student:me cache
-            const meCacheKey = buildCacheKey(`student:me:${studentId}`, {});
-            await redis.del(meCacheKey);
-            // Invalidate heatmap cache
-            await redis.del(`student:heatmap:${studentId}:*`);
 
             res.json({
               success: true,

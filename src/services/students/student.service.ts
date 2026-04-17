@@ -130,16 +130,12 @@ export const updateStudentDetailsService = async (id: number, body: StudentUpdat
         // Invalidate caches when student profile data changes
         await CacheInvalidation.invalidateAllLeaderboards();
         
-        // Invalidate getCurrentStudent cache
-        const cacheKey = buildCacheKey(`student:me:${id}`, {});
-        await redis.del(cacheKey);
-        
-        // Invalidate student profile cache
+        // Invalidate student profile cache (sweeps /me and current public profile)
         await CacheInvalidation.invalidateStudentProfile(id);
         
-        // Invalidate public profile cache for old username if username changed
-        if (updateData.username && updateData.username !== student.username) {
-          await redis.del(`student:profile:public:${student.username}`);
+        // Invalidate public profile cache specifically for old username if username changed
+        if (updateData.username && updateData.username !== student.username && student.username) {
+          await CacheInvalidation.invalidateStudentProfile(id, student.username);
         }
         
         // Invalidate heatmap cache
@@ -185,10 +181,6 @@ export const deleteStudentDetailsService = async (id: number) => {
 
         // Full cache invalidation for the deleted student
         await CacheInvalidation.invalidateStudent(id);
-        
-        // Invalidate student:me
-        const cacheKey = buildCacheKey(`student:me:${id}`, {});
-        await redis.del(cacheKey);
 
         return true;
 

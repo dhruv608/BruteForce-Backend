@@ -218,7 +218,26 @@ export const refreshAccessToken = async (refreshToken: string) => {
     }),
   });
 
-  return { accessToken: newAccessToken };
+  // Generate new refresh token
+  const newRefreshToken = generateRefreshToken({
+    id: user.id,
+    userType: decoded.userType,
+  });
+
+  // Update refresh token in database
+  if (decoded.userType === 'admin') {
+    await prisma.admin.update({
+      where: { id: user.id },
+      data: { refresh_token: newRefreshToken },
+    });
+  } else {
+    await prisma.student.update({
+      where: { id: user.id },
+      data: { refresh_token: newRefreshToken },
+    });
+  }
+
+  return { accessToken: newAccessToken, newRefreshToken };
 };
 
 export const googleAuth = async (idToken: string) => {

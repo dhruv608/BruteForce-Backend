@@ -64,7 +64,7 @@ export const loginStudent = asyncHandler(async (req: Request, res: Response) => 
 
     secure: process.env.NODE_ENV === 'production',
 
-    sameSite: 'lax',
+    sameSite: 'none',
 
     maxAge: 7 * 24 * 60 * 60 * 1000,
 
@@ -132,7 +132,7 @@ export const loginAdmin = asyncHandler(async (req: Request, res: Response) => {
 
     secure: process.env.NODE_ENV === 'production',
 
-    sameSite: 'lax',
+    sameSite: 'none',
 
     maxAge: 7 * 24 * 60 * 60 * 1000,
 
@@ -157,15 +157,19 @@ export const loginAdmin = asyncHandler(async (req: Request, res: Response) => {
 
 
 export const refreshToken = asyncHandler(async (req: Request, res: Response) => {
-
   const refreshToken = req.cookies.refreshToken;
-
-  const { accessToken } = await refreshAccessTokenService(refreshToken);
-
+  const { accessToken, newRefreshToken } = await refreshAccessTokenService(refreshToken);
   
+  // Set the new refresh token cookie
+  res.cookie('refreshToken', newRefreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'none',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/'
+  });
 
   res.json({ accessToken });
-
 });
 
 
@@ -186,7 +190,7 @@ export const googleLogin = asyncHandler(async (req: Request, res: Response) => {
 
     secure: process.env.NODE_ENV === 'production',
 
-    sameSite: 'lax',
+    sameSite: 'none',
 
     maxAge: 7 * 24 * 60 * 60 * 1000,
 

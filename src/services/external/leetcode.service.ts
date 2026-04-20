@@ -18,7 +18,7 @@ interface LeetcodeResponse {
 // Rate limiting configuration for LeetCode API
 const leetcodeLimiter = new bottleneck.default({
   maxConcurrent: 1,    // Only 1 request at a time
-  minTime: 300,        // 300ms between requests
+  minTime: 2000,       // 2 seconds between requests (increased to avoid rate limiting)
 });
 
 export async function fetchLeetcodeData(

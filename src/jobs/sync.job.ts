@@ -4,6 +4,7 @@ import { studentSyncQueue } from "../queues/studentSync.queue";
 import { tryRunLeaderboard } from "../services/leaderboardSync/leaderboardWindow.service";
 import { startSync, isSyncRunning } from "../utils/syncStatus";
 import { setBatchQuestions } from "../store/batchQuestions.store";
+import { LinkUpdateService } from "../services/linkUpdate/linkUpdate.service";
 
 export function startSyncJob() {
 
@@ -15,9 +16,10 @@ export function startSyncJob() {
     // Student Sync Cron: 5 AM, 2 PM, 8 PM
     // cron.schedule("0 5,14,20 * * *", async () => {
     // cron.schedule("*/1 * * * *", async () => {
-      cron.schedule("3 16 * * *", async () => {
+      cron.schedule("37 23 * * *", async () => {
       const maxRetries = 3;
       let attempt = 0;
+      let linkUpdateResults: { updated: number; skipped: number; failed: number; total: number } | null = null;
 
       while (attempt < maxRetries) {
         try {
@@ -35,11 +37,21 @@ export function startSyncJob() {
             console.log(`[CRON] Queue not empty (${queueCount} jobs), skipping new sync`);
             return;
           }
+  
 
           // Set sync status
           startSync();
 
-          // Load all batch questions once per sync cycle
+          // STEP 1: Update all question links to handle redirects
+          console.log(`[CRON] Starting question link update process...`);
+          try {
+            linkUpdateResults = await LinkUpdateService.updateAllQuestionLinks();
+            LinkUpdateService.generateReport(linkUpdateResults);
+          } catch (error) {
+            console.error('[CRON] Question link update failed:', error);
+          }
+
+          // Load all batch questions once per sync cycle (after link updates)
           console.log(`[CRON] Loading batch questions for optimized sync`);
           const batchQuestionsQuery = await prisma.$queryRaw`
             WITH CTE_BatchQuestions AS (
@@ -103,6 +115,18 @@ export function startSyncJob() {
 
           await studentSyncQueue.addBulk(jobs);
           console.log(`[CRON]❤️❤️❤️❤️ Successfully added ${students.length} students to sync queue`);
+
+          // STEP 3: Generate final completion report after student sync
+          console.log('\n=== CRON JOB COMPLETION REPORT ===');
+          console.log(`Question Links Updated: ${linkUpdateResults ? linkUpdateResults.updated : 'N/A'}`);
+          console.log(`Total Students Processed: ${students.length}`);
+          console.log(`Students w/ New Solved Qs: [Will be calculated after sync completes]`);
+          console.log(`Total New Questions Added: [Will be calculated after sync completes]`);
+          console.log(`Students Skipped (Optimized): [Will be calculated after sync completes]`);
+          console.log(`Students Failed / Errored: [Will be calculated after sync completes]`);
+          console.log(`Sync Status: SUCCESS`);
+          console.log(`Timestamp: ${new Date().toISOString()}`);
+          console.log('==================================================');
 
           break;
 

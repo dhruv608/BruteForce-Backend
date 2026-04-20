@@ -125,7 +125,7 @@ export const studentSyncWorker = new Worker(
 
     connection: redisConnection,
 
-    concurrency: 3, // Process 3 jobs concurrently
+    concurrency: 1, // Process 1 job at a time to match rate limiter
 
   }
 

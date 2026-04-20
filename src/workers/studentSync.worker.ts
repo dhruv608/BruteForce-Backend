@@ -61,20 +61,18 @@ export const studentSyncWorker = new Worker(
         
 
         // Log based on the existing optimized logic results
-
         if (result.hadNewSolutions) {
-
           console.log(`[WORKER] Student ${studentId}: ${result.newSolved} new solutions added`);
-
         } else {
-
           console.log(`[WORKER] Student ${studentId}: No new solutions (skipped - optimized)`);
-
         }
-
         
-
-        return result;
+        return { 
+          status: "SUCCESS", 
+          studentId, 
+          newSolved: result.newSolved,
+          skipped: !result.hadNewSolutions
+        };
 
       } catch (error: any) {
 
@@ -91,19 +89,16 @@ export const studentSyncWorker = new Worker(
         
 
         // Handle invalid usernames and API errors
-
         if (error.message?.includes('Invalid LeetCode username') || 
-
             error.message?.includes('Invalid GFG handle') ||
-
             error.status === 400 ||
-
             error.code === 'INVALID_USERNAME') {
-
           console.log(`[WORKER] Student ${studentId}: Invalid username/API error, skipping user`);
-
-          return;
-
+          return {
+            status: "ERROR",
+            studentId,
+            reason: error.message || "Invalid Platform Username"
+          };
         } else {
 
           console.error(`[WORKER] Student ${studentId}: Sync failed -`, error.message || error);
@@ -149,17 +144,11 @@ studentSyncWorker.on('error', (err) => {
 
 
 studentSyncWorker.on('completed', (job, result) => {
-
-  console.log(`[WORKER] Job ${job.id} completed for student ${job.data.studentId}`);
-
+  // console.log(`[WORKER] Job ${job.id} completed for student ${job.data.studentId}`);
 });
 
-
-
 studentSyncWorker.on('failed', (job, err) => {
-
-  console.error(`[WORKER] Job ${job?.id} failed for student ${job?.data?.studentId}:`, err);
-
+  // console.error(`[WORKER] Job ${job?.id} failed for student ${job?.data?.studentId}:`, err);
 });
 
 

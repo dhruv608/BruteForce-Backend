@@ -10,8 +10,9 @@ export async function tryRunLeaderboard(): Promise<void> {
   console.log('[LEADERBOARD] Starting leaderboard sync with window logic');
 
   while (waited < MAX_WAIT) {
+    const TESTING_MODE =true;
     // Check if sync is not running AND has completed at least once
-    if (!isSyncRunning() && getSyncCompletionTime() !== null) {
+    if ( TESTING_MODE || (!isSyncRunning() && getSyncCompletionTime() !== null) ){
       try {
         console.log('[LEADERBOARD] Sync is complete, running leaderboard update');
         const result = await syncLeaderboardData();

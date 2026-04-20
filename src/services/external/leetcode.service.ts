@@ -54,7 +54,7 @@ export async function fetchLeetcodeData(
           "Referer": "https://leetcode.com",
           "Origin": "https://leetcode.com"
         },
-        timeout: 5000  // 5 second timeout
+        timeout: 15000  // 15 second timeout
       }
     );
 

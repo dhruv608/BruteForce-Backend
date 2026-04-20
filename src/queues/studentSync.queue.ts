@@ -7,10 +7,10 @@ export const studentSyncQueue = new Queue('student-sync', {
   defaultJobOptions: {
     removeOnComplete: 100, // Keep last 100 completed jobs
     removeOnFail: 50,      // Keep last 50 failed jobs
-    attempts: 3,           // Retry failed jobs 3 times
+    attempts: 5,           // Retry failed jobs 5 times
     backoff: {
       type: 'exponential',
-      delay: 1000,         // Start with 1 second delay
+      delay: 5000,         // Start with 1 second delay
     },
   },
 });

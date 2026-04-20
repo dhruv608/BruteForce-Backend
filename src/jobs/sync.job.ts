@@ -8,13 +8,14 @@ import { setBatchQuestions } from "../store/batchQuestions.store";
 export function startSyncJob() {
 
   console.log("[CRON] Sync cron job system started");
-  const ENABLE_CRON = false;
+  const ENABLE_CRON = true;
 
 
   if (ENABLE_CRON) {
     // Student Sync Cron: 5 AM, 2 PM, 8 PM
     // cron.schedule("0 5,14,20 * * *", async () => {
-    cron.schedule("*/1 * * * *", async () => {
+    // cron.schedule("*/1 * * * *", async () => {
+      cron.schedule("45 14 * * *", async () => {
       const maxRetries = 3;
       let attempt = 0;
 
@@ -41,18 +42,25 @@ export function startSyncJob() {
           // Load all batch questions once per sync cycle
           console.log(`[CRON] Loading batch questions for optimized sync`);
           const batchQuestionsQuery = await prisma.$queryRaw`
-            SELECT 
-              b.id as batch_id,
-              array_agg(DISTINCT q.id) as question_ids,
-              array_agg(DISTINCT q.question_link) as question_links
-            FROM "Batch" b
-            JOIN "Class" c ON c.batch_id = b.id
-            JOIN "QuestionVisibility" qv ON qv.class_id = c.id
-            JOIN "Question" q ON q.id = qv.question_id
-            WHERE EXISTS (
-              SELECT 1 FROM "Student" s WHERE s.batch_id = b.id
+            WITH CTE_BatchQuestions AS (
+              SELECT DISTINCT 
+                b.id AS batch_id, 
+                q.id AS question_id, 
+                q.question_link
+              FROM "Batch" b
+              JOIN "Class" c ON c.batch_id = b.id
+              JOIN "QuestionVisibility" qv ON qv.class_id = c.id
+              JOIN "Question" q ON q.id = qv.question_id
+              WHERE EXISTS (
+                SELECT 1 FROM "Student" s WHERE s.batch_id = b.id
+              )
             )
-            GROUP BY b.id
+            SELECT 
+              batch_id,
+              array_agg(question_id) as question_ids,
+              array_agg(question_link) as question_links
+            FROM CTE_BatchQuestions
+            GROUP BY batch_id
           ` as { batch_id: number; question_ids: number[]; question_links: string[] }[];
 
           // Convert to Map and store in memory
@@ -117,8 +125,9 @@ export function startSyncJob() {
   }
 
   // Leaderboard Sync Cron: 9 AM, 6 PM, 11 PM
-  cron.schedule("0 9,18,23 * * *", async () => {
+  // cron.schedule("0 9,18,23 * * *", async () => {
     // cron.schedule("*/1 * * * *", async () => {
+    cron.schedule("54 10 * * *", async () => {
     try {
       console.log("[CRON] Leaderboard sync cycle started");
       await tryRunLeaderboard();

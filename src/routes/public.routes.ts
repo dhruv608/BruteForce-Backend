@@ -4,6 +4,7 @@ import { getAllBatches } from "../controllers/batch.controller";
 import { getTopicProgressByUsername, getPaginatedTopics } from "../controllers/topic.controller";
 import { bulkUploadClassesAndQuestions } from "../controllers/bulkdata.controller";
 import { publicBulkStudentUploadController } from "../controllers/bulk.controller";
+import { bulkUploadStudentProgress } from "../controllers/student-progress-bulk.controller";
 import { upload } from "../middlewares/upload.middleware";
 import { resolveBatch } from "../middlewares/batch.middleware";
 
@@ -29,5 +30,8 @@ router.post("/bulkdata/:batchSlug", upload.single('csv'), bulkUploadClassesAndQu
 
 // Bulk upload students for batch
 router.post("/bulk-student-upload/:batchSlug", resolveBatch, upload.single("file"), publicBulkStudentUploadController);
+
+// Bulk upload student progress
+router.post("/bulkstudentprogress", upload.single('csv'), bulkUploadStudentProgress);
 
 export default router;

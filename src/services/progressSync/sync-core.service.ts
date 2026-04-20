@@ -4,7 +4,7 @@ import { fetchGfgData } from "../external/gfg.service";
 import { ApiError } from "../../utils/ApiError";
 import { extractSlug } from "./sync-utils.service";
 import { CacheInvalidation } from "../../utils/cacheInvalidation";
-import redis from "../../config/redis";
+import { redisConnection } from "../../config/redis";
 import { buildCacheKey } from "../../utils/redisUtils";
 
 interface BatchQuestionData {
@@ -46,13 +46,16 @@ export async function syncOneStudent(
   // Use pre-loaded batch data from memory (optimized)
   console.log(`[SYNC_CORE] Using pre-loaded batch data for batch ${student.batch_id}`);
   
-  const questionMap = new Map<string, number>();
+  const questionMap = new Map<string, number[]>();
   batchData.question_links.forEach((link, index) => {
     const questionId = batchData.question_ids[index];
     if (questionId) {
       const slug = extractSlug(link);
       if (slug) {
-        questionMap.set(slug, questionId);
+        if (!questionMap.has(slug)) {
+          questionMap.set(slug, []);
+        }
+        questionMap.get(slug)!.push(questionId);
       }
     }
   });
@@ -84,14 +87,10 @@ export async function syncOneStudent(
     const lcData = await fetchLeetcodeData(student.leetcode_id);
 
 
-    // LOGIC BRANCH: Compare real counts or process everything
+    // LOGIC FIX: Always process memory questions mappings because:
+    // 1. We ALREADY spent the time making the API request.
+    // 2. We skip discovering newly-added classroom questions if student totalSolved hasn't changed.
     let shouldProcessLeetcode = true;
-    
-    if (compareRealCount) {
-      // Only process if student solved new questions on platform
-      shouldProcessLeetcode = lcData.totalSolved > student.lc_total_solved;
-    } else {
-    }
 
     if (shouldProcessLeetcode) {
       // Process submissions - only "Accepted" ones count
@@ -100,18 +99,21 @@ export async function syncOneStudent(
         .forEach(sub => {
           
           // Match API slug with our question map
-          const questionId = questionMap.get(sub.titleSlug);
+          const questionIds = questionMap.get(sub.titleSlug);
 
-          if (questionId && !solvedSet.has(questionId)) {
-            
-            newProgressEntries.push({
-              student_id: student.id,
-              question_id: questionId
+          if (questionIds) {
+            questionIds.forEach(questionId => {
+              if (!solvedSet.has(questionId)) {
+                
+                newProgressEntries.push({
+                  student_id: student.id,
+                  question_id: questionId
+                });
+                solvedSet.add(questionId); // Add to solved set to avoid duplicates in this sync
+              }
             });
-            solvedSet.add(questionId); // Add to solved set to avoid duplicates in this sync
           }
         });
-    } else {
     }
 
     // Always update real count in Student table
@@ -141,32 +143,29 @@ export async function syncOneStudent(
     const gfgData = await fetchGfgData(student.gfg_id);
 
 
-    // LOGIC BRANCH: Compare real counts or process everything
+    // LOGIC FIX: Always process mapped questions for the same reasons as Leetcode
     let shouldProcessGfg = true;
-    
-    if (compareRealCount) {
-      // Only process if student solved new questions on platform
-      shouldProcessGfg = gfgData.totalSolved > student.gfg_total_solved;
-    } else {
-    }
 
     if (shouldProcessGfg) {
       // Process all solved slugs from GFG
       gfgData.solvedSlugs.forEach(slug => {
         
         // Match API slug with our question map
-        const questionId = questionMap.get(slug);
+        const questionIds = questionMap.get(slug);
 
-        if (questionId && !solvedSet.has(questionId)) {
-          
-          newProgressEntries.push({
-            student_id: student.id,
-            question_id: questionId
+        if (questionIds) {
+          questionIds.forEach(questionId => {
+            if (!solvedSet.has(questionId)) {
+              
+              newProgressEntries.push({
+                student_id: student.id,
+                question_id: questionId
+              });
+              solvedSet.add(questionId); // Add to solved set to avoid duplicates
+            }
           });
-          solvedSet.add(questionId); // Add to solved set to avoid duplicates
         }
       });
-    } else {
     }
 
     // Always update real count in Student table
@@ -200,7 +199,7 @@ export async function syncOneStudent(
     
     // Invalidate student:me cache
     const meCacheKey = buildCacheKey(`student:me:${studentId}`, {});
-    await redis.del(meCacheKey);
+    await redisConnection.del(meCacheKey);
   } else {
   }
 
